@@ -1,0 +1,6 @@
+{
+  "name": "Adaptation Family",
+  "description": "Elite predictions and booking codes for sports analytics, with dynamic categories and professional experts roster.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

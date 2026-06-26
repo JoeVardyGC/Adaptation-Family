@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --spacing-base: 8px;
+  --spacing-xs: 4px;
+  --spacing-sm: 12px;
+  --spacing-md: 24px;
+  --spacing-lg: 48px;
+  --spacing-xl: 80px;
+  --spacing-gutter: 16px;
+  --spacing-margin-mobile: 20px;
+  --spacing-margin-desktop: 64px;
+
+  --font-body-md: "Montserrat", sans-serif;
+  --font-label-lg: "Montserrat", sans-serif;
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-label-md: "Montserrat", sans-serif;
+  --font-headline-lg: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-headline-md: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-headline-lg-mobile: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-body-lg: "Montserrat", sans-serif;
+
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-body-md--font-weight: 400;
+
+  --text-label-lg: 14px;
+  --text-label-lg--line-height: 20px;
+  --text-label-lg--letter-spacing: 0.05em;
+  --text-label-lg--font-weight: 700;
+
+  --text-display: 48px;
+  --text-display--line-height: 56px;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 800;
+
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--font-weight: 600;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.01em;
+  --text-headline-lg--font-weight: 700;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 700;
+
+  --text-headline-lg-mobile: 28px;
+  --text-headline-lg-mobile--line-height: 34px;
+  --text-headline-lg-mobile--font-weight: 700;
+
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body-lg--font-weight: 500;
+  
+  --color-on-primary-container: #000000;
+  --color-inverse-on-surface: #ffffff;
+  --color-surface-tint: #f3c623;
+  --color-tertiary-fixed-dim: #d4af37;
+  --color-error: #e53e3e;
+  --color-surface-container-high: #eaeaea;
+  --color-on-tertiary: #000000;
+  --color-inverse-primary: #8f7200;
+  --color-secondary-fixed-dim: #eaeaea;
+  --color-outline: #c4c4cc;
+  --color-on-background: #121214;
+  --color-surface-variant: #f3f3f5;
+  --color-primary-container: #f3c623;
+  --color-on-tertiary-fixed: #000000;
+  --color-on-error-container: #ffffff;
+  --color-on-tertiary-fixed-variant: #5c5c64;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline-variant: #eaeaea;
+  --color-primary-fixed-dim: #f3c623;
+  --color-on-error: #ffffff;
+  --color-tertiary: #5c5c64;
+  --color-surface-bright: #ffffff;
+  --color-on-surface: #121214;
+  --color-on-primary: #000000;
+  --color-on-secondary-fixed: #121214;
+  --color-on-tertiary-container: #000000;
+  --color-on-primary-fixed-variant: #8f7200;
+  --color-secondary-container: #f7f7f9;
+  --color-error-container: #fed7d7;
+  --color-on-primary-fixed: #000000;
+  --color-surface-container-low: #f7f7f9;
+  --color-on-surface-variant: #5c5c64;
+  --color-on-secondary-container: #121214;
+  --color-surface-container: #f0f0f3;
+  --color-surface: #ffffff;
+  --color-inverse-surface: #121214;
+  --color-tertiary-container: #fff9e6;
+  --color-primary: #f3c623;
+  --color-surface-dim: #f0f0f3;
+  --color-on-secondary: #ffffff;
+  --color-secondary-fixed: #eaeaea;
+  --color-tertiary-fixed: #f3c623;
+  --color-on-secondary-fixed-variant: #5c5c64;
+  --color-primary-fixed: #f3c623;
+  --color-background: #ffffff;
+  --color-secondary: #5c5c64;
+  --color-surface-container-highest: #dfdfe2;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes bgFade {
+  0%, 25% { opacity: 1; z-index: 10; }
+  33%, 58% { opacity: 0; z-index: 1; }
+  66%, 91% { opacity: 0; z-index: 1; }
+  100% { opacity: 1; z-index: 10; }
+}
+
+.bg-carousel-1 { animation: bgFade 15s infinite; }
+.bg-carousel-2 { animation: bgFade 15s infinite -5s; }
+.bg-carousel-3 { animation: bgFade 15s infinite -10s; }
