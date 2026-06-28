@@ -15,11 +15,11 @@
 
   --font-body-md: "Montserrat", sans-serif;
   --font-label-lg: "Montserrat", sans-serif;
-  --font-display: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-display: "Montserrat", sans-serif;
   --font-label-md: "Montserrat", sans-serif;
-  --font-headline-lg: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
-  --font-headline-md: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
-  --font-headline-lg-mobile: "Space Grotesk", "Plus Jakarta Sans", "Montserrat", sans-serif;
+  --font-headline-lg: "Montserrat", sans-serif;
+  --font-headline-md: "Montserrat", sans-serif;
+  --font-headline-lg-mobile: "Montserrat", sans-serif;
   --font-body-lg: "Montserrat", sans-serif;
 
   --text-body-md: 16px;
@@ -129,3 +129,489 @@ body {
 .bg-carousel-1 { animation: bgFade 15s infinite; }
 .bg-carousel-2 { animation: bgFade 15s infinite -5s; }
 .bg-carousel-3 { animation: bgFade 15s infinite -10s; }
+
+@media (orientation: portrait) {
+  .portrait-donate-btn {
+    font-weight: bold !important;
+    font-size: 10px !important;
+  }
+  .portrait-hero-title {
+    font-size: 40px !important;
+    font-weight: bold !important;
+  }
+  .portrait-hero-span {
+    font-size: 19px !important;
+  }
+  .portrait-header-title {
+    font-weight: bold !important;
+  }
+  .portrait-hero-desc {
+    font-size: 15px !important;
+    width: 299px !important;
+    font-weight: normal !important;
+  }
+  .portrait-booking-title {
+    font-size: 23px !important;
+  }
+  .portrait-category-title {
+    font-size: 18px !important;
+  }
+  .portrait-view-more-btn {
+    font-weight: normal !important;
+  }
+  .portrait-experts-title {
+    font-size: 31px !important;
+  }
+  .portrait-analytical-span {
+    font-weight: normal !important;
+  }
+  .portrait-hide {
+    display: none !important;
+  }
+  .portrait-show-block {
+    display: block !important;
+  }
+}
+
+.slip-code-text {
+  font-family: "Montserrat", sans-serif !important;
+  font-size: 19px !important;
+  font-weight: 500 !important;
+}
+
+.category-chips-container {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+}
+
+.category-chips-container button.bg-primary-container {
+  font-weight: bold !important;
+}
+
+/* Loading Screen Styles */
+.loader-title {
+  font-family: "Montserrat", sans-serif !important;
+  font-weight: 800 !important;
+}
+.loader-subtitle {
+  font-family: "Montserrat", sans-serif !important;
+  font-weight: 700 !important;
+}
+
+.stat-value-text {
+  font-weight: bold !important;
+}
+
+.stat-label-text {
+  font-weight: bold !important;
+}
+
+/* PC/Desktop View Font Weight Overhaul (min-width: 769px) */
+@media (min-width: 769px) {
+  :root {
+    --text-display--font-weight: 600 !important;
+    --text-headline-lg--font-weight: 500 !important;
+    --text-headline-md--font-weight: 500 !important;
+    --text-label-lg--font-weight: 500 !important;
+    --text-label-md--font-weight: 400 !important;
+    --text-body-lg--font-weight: 400 !important;
+  }
+
+  body {
+    font-weight: 400 !important;
+  }
+
+  /* Reduce weight of all major heading elements on PC */
+  h1, h2 {
+    font-weight: 600 !important;
+  }
+  h3, h4, h5, h6 {
+    font-weight: 500 !important;
+  }
+
+  /* Override standard Tailwind font weight utility classes on PC */
+  .font-black {
+    font-weight: 600 !important;
+  }
+  .font-extrabold {
+    font-weight: 600 !important;
+  }
+  .font-bold {
+    font-weight: 500 !important;
+  }
+  .font-semibold {
+    font-weight: 500 !important;
+  }
+  .font-medium {
+    font-weight: 400 !important;
+  }
+
+  /* Override custom classes and specific sections */
+  .slip-code-text {
+    font-weight: 500 !important;
+  }
+  .stat-value-text {
+    font-weight: 500 !important;
+  }
+  .stat-label-text {
+    font-weight: 400 !important;
+  }
+
+  /* Ensure selected category buttons are not too bold but still distinct from normal buttons */
+  #booking-codes button, 
+  .category-chips-container button {
+    font-weight: 400 !important;
+  }
+  #booking-codes button.bg-primary-container, 
+  .category-chips-container button.bg-primary-container {
+    font-weight: bold !important;
+  }
+
+  /* Focus Mode Override - Ensure key display elements have correct bold weights as requested */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > h2:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > h1:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > h2:nth-of-type(1) > span:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(7) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > section:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > section#meet-the-experts:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+
+  /* Focus Mode Override Set 2 */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(3) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(5) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(6) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(7) > div:nth-of-type(1) > h3:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
+    font-weight: bold !important;
+  }
+}
+
+/* Focus Mode Overrides Set 3 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+
+/* Focus Mode Overrides Set 4 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1).bg-primary-container {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1):not(.bg-primary-container) {
+  font-weight: normal !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > button:nth-of-type(1) {
+  font-weight: bold !important;
+}
+
+/* Focus Mode Overrides Set 5 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(2).bg-primary-container {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(2):not(.bg-primary-container) {
+  font-weight: normal !important;
+}
+
+/* Sticky Category Bar scroll hide on mobile */
+@media (max-width: 768px) {
+  .sticky-category-bar {
+    transition: transform 0.3s ease, opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    transform-origin: top;
+  }
+  .sticky-category-bar.is-scrolled {
+    opacity: 0 !important;
+    transform: scaleY(0) translateY(-100%);
+    pointer-events: none !important;
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    border-bottom-width: 0 !important;
+    overflow: hidden !important;
+  }
+  
+  /* Apply 17px and bold styling to all code elements in mobile view */
+  .slip-code-text {
+    font-weight: 500 !important;
+    font-size: 17px !important;
+  }
+}
+
+/* Focus Mode Overrides Set 6 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) {
+  /* empty selector as requested in CSS 1 */
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: 500 !important;
+  font-size: 17px !important;
+}
+
+/* Focus Mode Overrides Set 7 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > label:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > select#odds-sort-select:nth-of-type(1) {
+  font-weight: normal !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) {
+  /* empty selector as requested in CSS 3 */
+}
+
+/* Focus Mode Overrides Set 8 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2) {
+  font-weight: normal !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > span:nth-of-type(2) {
+  font-weight: normal !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > span:nth-of-type(2) {
+  font-weight: normal !important;
+}
+
+/* Focus Mode Overrides Set 9 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(2) > a:nth-of-type(1) > span:nth-of-type(2) {
+  /* Font-weight is dynamically adjusted via state classes in JSX/App.tsx */
+}
+
+/* Focus Mode Overrides Set 10 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > h2:nth-of-type(1) > span:nth-of-type(1) {
+  background-color: #000000 !important;
+  color: #f3c623 !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > button:nth-of-type(1) {
+  /* empty selector as requested in CSS 2 */
+}
+
+/* Focus Mode Overrides Set 11 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > h2:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > h2:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+
+/* Focus Mode Overrides Set 12 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > h3:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(4) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > h3:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+
+/* Focus Mode Overrides Set 13: Montserrat font overrides */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-family: "Montserrat", sans-serif !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-family: "Montserrat", sans-serif !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-family: "Montserrat", sans-serif !important;
+}
+
+/* Focus Mode Overrides Set 14 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(4) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > h3:nth-of-type(1) {
+  font-weight: bold !important;
+  font-size: 19px !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(3) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(4) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(1) {
+  font-weight: bold !important;
+}
+
+/* Focus Mode Overrides Set 15: Hide selected navigation items */
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(3) > button:nth-of-type(1) > span:nth-of-type(1) {
+  display: none !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) {
+  display: none !important;
+}
+
+/* Focus Mode Overrides Set 16: Hide specified elements */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2) {
+  display: none !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(3) {
+  display: none !important;
+}
+
+/* Focus Mode Overrides Set 17 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1) {
+  border-radius: 0px !important;
+  border-width: 1px !important;
+  width: 69px !important;
+  height: 58px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1) img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: none !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > button:nth-of-type(1) {
+  color: #000000 !important;
+  background-color: #f3c623 !important;
+}
+
+/* Focus Mode Overrides Set 18 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) {
+  font-weight: normal !important;
+}
+
+/* Focus Mode Overrides Set 19 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div#booking-codes:nth-of-type(1) > div:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(1) {
+  font-weight: 500 !important;
+}
+
+/* Focus Mode Overrides Set 20 */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > button:nth-of-type(1) {
+  font-weight: normal !important;
+}
+
+
+
+
+
+
