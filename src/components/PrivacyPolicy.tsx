@@ -205,7 +205,7 @@ export default function PrivacyPolicy({ onBackToHome }: PrivacyPolicyProps) {
             {/* Last Updated */}
             <article className="pt-6 border-t border-surface-container">
               <p className="font-semibold text-xs text-secondary">
-                Last Updated: December 14, 2024
+                Last Updated: December 14, 2026
               </p>
             </article>
           </div>

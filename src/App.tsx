@@ -6,6 +6,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
+import AdminLogin from './components/AdminLogin';
+import AdminDashboard from './components/AdminDashboard';
 
 interface Ticket {
   id: string;
@@ -167,7 +170,7 @@ export default function App() {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'home' | 'booking-codes' | 'team' | 'donate' | 'privacy'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'booking-codes' | 'team' | 'donate' | 'privacy' | 'terms' | 'login' | 'admin-dashboard'>('home');
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('All');
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [donationCopiedText, setDonationCopiedText] = useState<string | null>(null);
@@ -177,6 +180,96 @@ export default function App() {
   const [isAtTop, setIsAtTop] = useState(true);
   const [formattedDate, setFormattedDate] = useState('');
   const [oddsSortOrder, setOddsSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
+  const [logoClickCount, setLogoClickCount] = useState(0);
+
+  // Synchronized payment settings
+  const [momoAccountName, setMomoAccountName] = useState(() => localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
+  const [momoNumber, setMomoNumber] = useState(() => localStorage.getItem("momo_number") || "055 776 5432");
+  const [momoReference, setMomoReference] = useState(() => localStorage.getItem("momo_reference") || "ADAPT FAMILY");
+
+  // Bank details
+  const [bankName, setBankName] = useState(() => localStorage.getItem("bank_name") || "Ecobank Ghana");
+  const [bankAccountNumber, setBankAccountNumber] = useState(() => localStorage.getItem("bank_account_number") || "1441002345678");
+  const [bankAccountHolder, setBankAccountHolder] = useState(() => localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
+  const [bankBranch, setBankBranch] = useState(() => localStorage.getItem("bank_branch") || "Accra Mall Branch");
+
+  const [publicTeamMembers, setPublicTeamMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Reload payment settings from local storage whenever view changes
+    setMomoAccountName(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
+    setMomoNumber(localStorage.getItem("momo_number") || "055 776 5432");
+    setMomoReference(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
+    setBankName(localStorage.getItem("bank_name") || "Ecobank Ghana");
+    setBankAccountNumber(localStorage.getItem("bank_account_number") || "1441002345678");
+    setBankAccountHolder(localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
+    setBankBranch(localStorage.getItem("bank_branch") || "Accra Mall Branch");
+
+    // Load team members from local storage
+    const saved = localStorage.getItem("adaptation_team_members");
+    if (saved) {
+      try {
+        setPublicTeamMembers(JSON.parse(saved));
+        return;
+      } catch (e) {}
+    }
+    setPublicTeamMembers([
+      {
+        id: "1",
+        name: "Alex Rivera",
+        role: "Head Strategist",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCmiZUJxcfA2HLcC3ksPOmZ9iFilcu9VxwM1cEZQ0dDxRaMc9wh2q2HXOYnGMZUnKxIIMsgZwWxLuTSTbZU9663BX7vzGD0qa4CBV4oeNR-Q-QyjXLVvnUwzCa3CE13tYbIjRaHWMgyZPbIuo9VC2ipzI3jo8acV4pt47p8zoE4BOfn2fHL5CTVtT0yQlB7ihuN6w5QDziNla4OLDwud_8PPNUYhG7S7tHZoKlnwtfLxn13-CAKb6RUaaZfii5cER2IlC97pGzR2Q"
+      },
+      {
+        id: "2",
+        name: "Sarah Chen",
+        role: "Betting Analyst",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDCyYp7hzyLNJ48AOfaeEBhlHcqZ67PjXLmLQtiNv69fvyB7ovUvq7wfgIctAQpDgp5os_G7ahOPk-nRwMwN0_b-kmleasMXVxcLrXwZWriqmea3bRcJ9DHmKkEznGZd9gG4hFvx9KvMNGklh1sw5KtuEHyg_5-pGtoZVXmUTivK15iEsltP6pkphhR9AFw8P6sSE5ShXhypOiSINjJN7JtxiunqhNQ6ptWAedCeKsVBu3f3xp43-CkhLtf4mhMhCBtZJ8QtDQiLQ"
+      },
+      {
+        id: "3",
+        name: "Marcus Kalu",
+        role: "Data Scientist",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAh3Q6DdsxRqWFOLxx1Fze_ytBJKqTytUQS_qPMMB1dYsrP3-iowSYZyaNNS_quFqr_FGvFSJavftj1GnqTpNdgWdrX3qeTeJccOcawp6NyHD0X-srkvYq0qdZxnXZArJiavY8dYqc-G06vzR1JrHwWbvG3K6jlaGPxORdAbbq7Su8LzLgykt6za1KWOqAFnvtEhvgJssPlXahLd8YDACjV6gaV5iZk46aPea5Xn2sWwaa4KCBpwlAelkiPCHAMGFdl11MB97WGVw"
+      },
+      {
+        id: "4",
+        name: "Elena Rodriguez",
+        role: "Community Lead",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuALUubqUDswtVcW0pIMU3998mBvcMGMEYFv8-le3Zeu7VlJWhS1_JHQGyQw60ZRa2tGgQrZHv6iIJs2B00cuXYJgjnliApeCi2Wozx9-xqK2ANUifb-2bxhd4QkU9rNgVTy_erySNIVdUPOUp8uv_C7oXzHRMYnAvO8jrIpO_5MoV8Bez1C0r_csoOheCpKzExcyTNW9RovImIga-CmYB0RvkTHRuD5EwLdiDZ-L4KMNzSxElK6r2KAajylJBZE5RravTyuhYFTVQ"
+      },
+      {
+        id: "5",
+        name: "James Wilson",
+        role: "Support Specialist",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDPS4A9qxg2bJPQpUJKyzLON43UgwP-T5g5XLpWNrC3z846DT9sOia8oqLajZ7_OUd3l4e_gS8lo8031L9KmSRBtKMOPEaekKy2AnlIKtMYFUSr6sLpYEAXUKNtZQpG8jfij94P_cQkwBplHGvAqfyr-yeCJIo49a93kTmYaUZr0Q9O7Mp0x2W5UGMrAJILzXShzsEhWw8IJcyn9yaQpcF_IK7_9i783fRhenn7DlQMHd9AFNLO9zwHSlQGTPYR5SlXOy8M6Wli4A"
+      },
+      {
+        id: "6",
+        name: "Sophie Laurent",
+        role: "Operations Manager",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAC1G7CxYxMK9Hq0nijASDWKWpjbQASp-jyzcvGp1_eE3nY-yF15Y3IswVW_PvGJwWuoRhWD8Pdv-vFvb09xrDvYiraLx8kLhhKfih8-o-0GXbnLgxF5riE-eIumDQGXwPOUYY42taaz3feG3HRTT-2uxtPzxvHpO8Es-6opQe0qyHYiYTDIC5LnU5nkNQ0OMFa77jqKJt2nqJGLkM7mM8UN1duaHDppDII5Sa_VHoYRKSDp9jqjiHZfUAKeajbgnxEHDRgZKFV7w"
+      },
+      {
+        id: "7",
+        name: "David Okafor",
+        role: "Technical Advisor",
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBmMSbnRs98QVjlCvGPlgUkVxxLohGxGsMvZji1zto5CPTwl4A_GvCyVb7WGF3r-R02C7vzVi4QQgdGTaI90qfJvzP5G0ry3C_jYUAGcZbg1ytLM13H22jhWhDx1gjIONmAuHPpWhhTjUPq9aj9ARD2GxIVDpSy88bFlJ8xVBsjnlYTnd-c1drKuQbwqbz6MR3Ge-Ci7gUO5rhuJ9SQkVRLos1TqLXTy_dfKU_sSLTpaffWKEhoWEf6ZBCX9R_IlsoZO4bET14IvA"
+      }
+    ]);
+  }, [activeView]);
+
+  const handleLogoClick = () => {
+    setLogoClickCount((prev) => {
+      const newCount = prev + 1;
+      if (newCount >= 4) {
+        setActiveView('login');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return 0;
+      }
+      return newCount;
+    });
+  };
 
 
 
@@ -314,10 +407,15 @@ export default function App() {
 
       <div className="bg-surface text-on-surface antialiased flex">
       
-      {/* Top Navigation Bar (Unified Desktop & Mobile) */}
-      <header className="w-full fixed top-0 left-0 right-0 h-16 z-50 bg-surface-container-low/95 backdrop-blur-md border-b border-outline-variant shadow-sm px-4 sm:px-6 md:px-8 flex items-center justify-center">
+      {activeView !== 'login' && activeView !== 'admin-dashboard' && (
+        <>
+          {/* Top Navigation Bar (Unified Desktop & Mobile) */}
+          <header className="w-full fixed top-0 left-0 right-0 h-16 z-50 bg-surface-container-low/95 backdrop-blur-md border-b border-outline-variant shadow-sm px-4 sm:px-6 md:px-8 flex items-center justify-center">
         <div className="w-full max-w-5xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div 
+            onClick={handleLogoClick}
+            className="flex items-center gap-3 cursor-pointer select-none"
+          >
             <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm border border-outline-variant">
               <img
                 src="https://res.cloudinary.com/dslngzls6/image/upload/v1782495960/photo_2026-06-26_08-47-00_avg1go.jpg"
@@ -523,6 +621,22 @@ export default function App() {
                 <span className="material-symbols-outlined text-lg">gavel</span>
                 <span className={`font-label-lg ${activeView === 'privacy' ? 'font-bold' : 'font-normal'}`}>Privacy Policy</span>
               </a>
+
+              <a 
+                onClick={() => {
+                  setActiveView('terms');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'terms' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">description</span>
+                <span className={`font-label-lg ${activeView === 'terms' ? 'font-bold' : 'font-normal'}`}>Terms of Service</span>
+              </a>
+
+
             </div>
 
             <div className="flex flex-col gap-sm pt-4 border-t border-outline-variant">
@@ -543,9 +657,11 @@ export default function App() {
           </nav>
         </div>
       )}
+        </>
+      )}
 
       {/* Main Content Canvas */}
-      <main className="w-full pt-16 min-h-screen flex flex-col bg-surface-bright">
+      <main className={`w-full min-h-screen flex flex-col bg-surface-bright ${(activeView === 'login' || activeView === 'admin-dashboard') ? '' : 'pt-16'}`}>
         
         {activeView === 'home' && (
           <>
@@ -973,60 +1089,70 @@ export default function App() {
             {/* Team Grid */}
             <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                {/* Lead Profile: Sarah Jenkins (Spans 2x2 on LG) */}
-                {(() => {
-                  const lead = EXPERTS.find(e => e.isFeatured) || EXPERTS[0];
-                  return (
-                    <div className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col lg:col-span-2 lg:row-span-2 w-full">
-                      <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
-                        <img 
-                          alt={lead.name} 
-                          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
-                          src={lead.img}
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                      </div>
-                      <div className="p-6 md:p-8 flex-grow flex flex-col bg-surface-container-lowest relative">
-                        <div className="w-1.5 h-12 bg-primary-container absolute left-0 top-6 md:top-8"></div>
-                        <span className="inline-block bg-surface-container-low text-on-surface-variant text-xs font-bold px-3 py-1 rounded-full w-fit mb-3">
-                          {lead.role}
-                        </span>
-                        <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-on-surface mb-2">
-                          {lead.name}
-                        </h3>
-                      </div>
-                    </div>
-                  );
-                })()}
+                {publicTeamMembers.length > 0 ? (
+                  <>
+                    {/* Lead Profile (Spans 2x2 on LG) */}
+                    {(() => {
+                      const lead = publicTeamMembers[0];
+                      return (
+                        <div className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col lg:col-span-2 lg:row-span-2 w-full">
+                          <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
+                            <img 
+                              alt={lead.name} 
+                              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
+                              src={lead.image}
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                          </div>
+                          <div className="p-6 md:p-8 flex-grow flex flex-col bg-surface-container-lowest relative">
+                            <div className="w-1.5 h-12 bg-primary-container absolute left-0 top-6 md:top-8"></div>
+                            <span className="inline-block bg-surface-container-low text-on-surface-variant text-xs font-bold px-3 py-1 rounded-full w-fit mb-3">
+                              {lead.role}
+                            </span>
+                            <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-on-surface mb-2">
+                              {lead.name}
+                            </h3>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
-                {/* Other team profiles */}
-                {EXPERTS.filter(e => !e.isFeatured).map((expert) => (
-                  <div 
-                    key={expert.name}
-                    className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col w-full"
-                  >
-                    <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
-                      <img 
-                        alt={expert.name}
-                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
-                        src={expert.img}
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                    <div className="p-5 flex-grow flex flex-col bg-surface-container-lowest relative">
-                      <div className="w-1 h-12 bg-primary-container absolute left-0 top-5"></div>
-                      <span className="inline-block bg-surface-container-low text-on-surface-variant text-[11px] font-bold px-3 py-1 rounded-full w-fit mb-3">
-                        {expert.role}
-                      </span>
-                      <h3 className="font-display text-lg sm:text-xl font-extrabold text-on-surface mb-2">
-                        {expert.name}
-                      </h3>
-                    </div>
-                  </div>
-                ))}
-
+                    {/* Other team profiles */}
+                    {publicTeamMembers.slice(1).map((expert) => (
+                      <div 
+                        key={expert.id}
+                        className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col w-full"
+                      >
+                        <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
+                          <img 
+                            alt={expert.name}
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
+                            src={expert.image}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                            }}
+                          />
+                        </div>
+                        <div className="p-5 flex-grow flex flex-col bg-surface-container-lowest relative">
+                          <div className="w-1.5 h-12 bg-primary-container absolute left-0 top-5"></div>
+                          <span className="inline-block bg-surface-container-low text-on-surface-variant text-[11px] font-bold px-3 py-1 rounded-full w-fit mb-3">
+                            {expert.role}
+                          </span>
+                          <h3 className="font-display text-lg sm:text-xl font-extrabold text-on-surface mb-2">
+                            {expert.name}
+                          </h3>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <p className="text-sm text-on-surface-variant text-center col-span-full">No team members defined yet.</p>
+                )}
               </div>
             </section>
 
@@ -1052,13 +1178,13 @@ export default function App() {
             <section className="py-12 md:py-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto text-center relative overflow-hidden w-full mt-4">
               <div className="absolute inset-0 bg-surface-container-low -z-10 rounded-[3rem] opacity-50 transform -skew-y-2 scale-105"></div>
               <div className="max-w-3xl mx-auto flex flex-col items-center gap-4 relative z-10">
-                <div className="inline-flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full mb-2 border border-outline-variant/30">
-                  <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">SUPPORT THE MOVEMENT</span>
+                <div className="inline-flex items-center gap-2 bg-[#f3c623]/10 px-4 py-2 rounded-full mb-2 border border-[#f3c623]/30">
+                  <span className="w-2 h-2 rounded-full bg-[#f3c623] animate-pulse"></span>
+                  <span className="text-xs font-bold text-[#8f7200] uppercase tracking-wider">SUPPORT THE MOVEMENT</span>
                 </div>
                 <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-on-surface font-extrabold tracking-tight leading-tight">
                   DONATE <br />
-                  <span className="text-white bg-on-surface px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
+                  <span className="text-black bg-[#f3c623] px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
                     Direct Support Channels
                   </span>
                 </h2>
@@ -1071,38 +1197,37 @@ export default function App() {
             {/* Direct Donation Channels Cards Grid */}
             <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                
-                {/* Mobile Money Details Card */}
-                <div className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary-container/10 rounded-full blur-2xl"></div>
+                       {/* Mobile Money Details Card */}
+                <div className="bg-surface-container-lowest border border-[#f3c623]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-[#f3c623] hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3c623]/10 rounded-full blur-2xl"></div>
                   
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary-container/20 flex items-center justify-center text-on-surface">
-                      <span className="material-symbols-outlined text-2xl font-bold">phone_iphone</span>
+                    <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
+                      <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
                     </div>
                     <div>
-                      <span className="text-xs font-extrabold text-[#526600] uppercase tracking-wider">Option 1</span>
+                      <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
                       <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
                     </div>
                   </div>
 
                   <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-                    Transfer directly from your Mobile Money wallet using any Ghanaian network provider.
+                    Transfer directly to our Mobile Money number using your mobile wallet provider.
                   </p>
 
                   <div className="flex flex-col gap-4">
-                    {/* Recipient Name */}
+                    {/* Recipient Account Name */}
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Name</span>
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Registered Account Name</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">ADAPTATION FAMILY</span>
+                        <span className="text-sm sm:text-base font-black text-on-surface">{momoAccountName}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("ADAPTATION FAMILY");
+                            navigator.clipboard.writeText(momoAccountName);
                             setDonationCopiedText("Account Name Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
                           title="Copy Account Name"
                         >
                           <span className="material-symbols-outlined text-lg">content_copy</span>
@@ -1110,35 +1235,18 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Service Provider */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-2">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Service Providers</span>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center justify-center p-1 bg-white border border-[#FFCC00]/40 rounded-xl overflow-hidden shadow-sm">
-                          <img 
-                            src="https://res.cloudinary.com/dslngzls6/image/upload/v1782671422/download_r5odqa.png" 
-                            alt="MTN MoMo Logo" 
-                            className="h-9 object-contain px-2 py-0.5" 
-                            referrerPolicy="no-referrer" 
-                          />
-                        </span>
-                        <span className="bg-[#E60000]/10 text-[#CC0000] border border-[#E60000]/20 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Telecel Cash</span>
-                        <span className="bg-[#009EE0]/10 text-[#007EB5] border border-[#009EE0]/20 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">AT Money</span>
-                      </div>
-                    </div>
-
-                    {/* Mobile Money Contact */}
+                    {/* Mobile Money Number */}
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">MoMo Contact Number</span>
+                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">MoMo Number</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">055 776 5432</span>
+                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{momoNumber}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("0557765432");
+                            navigator.clipboard.writeText(momoNumber.replace(/\s+/g, ''));
                             setDonationCopiedText("MoMo Number Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
                           title="Copy MoMo Number"
                         >
                           <span className="material-symbols-outlined text-lg">content_copy</span>
@@ -1146,18 +1254,18 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Reference */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Suggested Reference</span>
+                    {/* Preferred Reference */}
+                    <div className="bg-[#f3c623]/5 border border-[#f3c623]/20 rounded-2xl p-4 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider">Required Reference</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface font-mono">ADAPT FAMILY</span>
+                        <span className="text-sm sm:text-base font-black text-[#8f7200] font-mono">{momoReference}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("ADAPT FAMILY");
+                            navigator.clipboard.writeText(momoReference);
                             setDonationCopiedText("Reference Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                          className="p-1.5 hover:bg-[#f3c623]/20 rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
                           title="Copy Reference"
                         >
                           <span className="material-symbols-outlined text-lg">content_copy</span>
@@ -1167,16 +1275,16 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Bank Details Card */}
-                <div className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-surface-container-high/20 rounded-full blur-2xl"></div>
+                {/* Bank Details Card (Optional / Secondary) */}
+                <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-neutral-400 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-200/20 rounded-full blur-2xl"></div>
                   
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-surface-container-high flex items-center justify-center text-on-surface">
-                      <span className="material-symbols-outlined text-2xl font-bold">account_balance</span>
+                    <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-on-surface">
+                      <span className="material-symbols-outlined text-2xl font-bold text-neutral-600">account_balance</span>
                     </div>
                     <div>
-                      <span className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Option 2</span>
+                      <span className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Option 2 (Optional)</span>
                       <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Direct Bank Transfer</h3>
                     </div>
                   </div>
@@ -1190,10 +1298,10 @@ export default function App() {
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Bank Name</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">Ecobank Ghana</span>
+                        <span className="text-sm sm:text-base font-black text-on-surface">{bankName}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("Ecobank Ghana");
+                            navigator.clipboard.writeText(bankName);
                             setDonationCopiedText("Bank Name Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
@@ -1209,10 +1317,10 @@ export default function App() {
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Holder Name</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">ADAPTATION FAMILY</span>
+                        <span className="text-sm sm:text-base font-black text-on-surface">{bankAccountHolder}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("ADAPTATION FAMILY");
+                            navigator.clipboard.writeText(bankAccountHolder);
                             setDonationCopiedText("Account Name Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
@@ -1228,10 +1336,10 @@ export default function App() {
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Number</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">1441002345678</span>
+                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{bankAccountNumber}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("1441002345678");
+                            navigator.clipboard.writeText(bankAccountNumber);
                             setDonationCopiedText("Account Number Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
@@ -1247,10 +1355,10 @@ export default function App() {
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Branch</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">Accra Mall Branch</span>
+                        <span className="text-sm sm:text-base font-black text-on-surface">{bankBranch}</span>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText("Accra Mall Branch");
+                            navigator.clipboard.writeText(bankBranch);
                             setDonationCopiedText("Branch Copied!");
                             setTimeout(() => setDonationCopiedText(null), 2000);
                           }}
@@ -1300,8 +1408,48 @@ export default function App() {
           />
         )}
 
+        {activeView === 'terms' && (
+          <TermsOfService 
+            onBackToHome={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }} 
+          />
+        )}
+
+        {activeView === 'login' && (
+          <AdminLogin 
+            onBackToHome={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onNavigateToPrivacy={() => {
+              setActiveView('privacy');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onNavigateToTerms={() => {
+              setActiveView('terms');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onLoginSuccess={() => {
+              setActiveView('admin-dashboard');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
+        {activeView === 'admin-dashboard' && (
+          <AdminDashboard 
+            onLogout={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
         {/* Footer */}
-        <footer className="w-full bg-neutral-950 text-neutral-300 border-t border-neutral-900 pt-16 pb-12 px-4 sm:px-6 md:px-8 mt-auto font-sans">
+        {activeView !== 'login' && activeView !== 'admin-dashboard' && (
+          <footer className="w-full bg-neutral-950 text-neutral-300 border-t border-neutral-900 pt-16 pb-12 px-4 sm:px-6 md:px-8 mt-auto font-sans">
           <div className="max-w-7xl mx-auto w-full flex flex-col gap-12">
             
             {/* Main Footer Grid */}
@@ -1396,8 +1544,17 @@ export default function App() {
                     </a>
                   </li>
                   <li>
-                    <a className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer">Terms of Service</a>
+                    <a 
+                      onClick={() => {
+                        setActiveView('terms');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Terms of Service
+                    </a>
                   </li>
+
                 </ul>
               </div>
 
@@ -1417,6 +1574,7 @@ export default function App() {
 
           </div>
         </footer>
+        )}
 
       </main>
 
