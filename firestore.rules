@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable global helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+%]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Validation helper functions
+    function isValidSlip(data) {
+      return data.keys().hasAll(['category', 'matches', 'odds', 'bookingCode', 'dateUploaded'])
+        && data.category is string && data.category.size() <= 100
+        && data.matches is string && data.matches.size() <= 100
+        && data.odds is string && data.odds.size() <= 50
+        && data.bookingCode is string && data.bookingCode.size() <= 100
+        && data.dateUploaded is string && data.dateUploaded.size() <= 100;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'icon', 'status'])
+        && data.name is string && data.name.size() <= 100
+        && data.icon is string && data.icon.size() <= 100
+        && data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidTeamMember(data) {
+      return data.keys().hasAll(['name', 'role', 'image'])
+        && data.name is string && data.name.size() <= 100
+        && data.role is string && data.role.size() <= 100
+        && data.image is string && data.image.size() <= 1000;
+    }
+
+    function isValidPaymentSettings(data) {
+      return data.keys().hasAll(['momoAccountName', 'momoNumber', 'momoReference', 'bankName', 'bankAccountNumber', 'bankAccountHolder', 'bankBranch'])
+        && data.momoAccountName is string && data.momoAccountName.size() <= 200
+        && data.momoNumber is string && data.momoNumber.size() <= 100
+        && data.momoReference is string && data.momoReference.size() <= 200
+        && data.bankName is string && data.bankName.size() <= 200
+        && data.bankAccountNumber is string && data.bankAccountNumber.size() <= 100
+        && data.bankAccountHolder is string && data.bankAccountHolder.size() <= 200
+        && data.bankBranch is string && data.bankBranch.size() <= 200;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'lastActive', 'initials'])
+        && data.name is string && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 200
+        && data.role is string && data.role.size() <= 50
+        && data.lastActive is string && data.lastActive.size() <= 100
+        && data.initials is string && data.initials.size() <= 10;
+    }
+
+    function isValidSecurityLog(data) {
+      return data.keys().hasAll(['time', 'text', 'type'])
+        && data.time is string && data.time.size() <= 50
+        && data.text is string && data.text.size() <= 500
+        && data.type is string && data.type.size() <= 50;
+    }
+
+    // --- Collections ---
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidAdmin(incoming()) && (
+        isAdmin() || adminId == request.auth.uid
+      );
+      allow delete: if isAdmin() && adminId != request.auth.uid; // Prevent deleting oneself
+    }
+
+    // Security Logs Collection
+    match /security_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isValidSecurityLog(incoming());
+      allow update, delete: if false;
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidCategory(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Slips Collection
+    match /slips/{slipId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidSlip(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Team Members Collection
+    match /team_members/{memberId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidTeamMember(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Payment Settings Collection
+    match /payment_settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidPaymentSettings(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

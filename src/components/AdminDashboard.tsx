@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { db, auth, handleFirestoreError, OperationType } from "../firebase";
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -23,25 +25,232 @@ interface TeamMember {
 }
 
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
+  const currentUser = auth.currentUser;
+  const adminEmail = currentUser?.email || "abubakarsadikmusah2004@gmail.com";
+  
+  const getAdminName = () => {
+    if (currentUser?.displayName) return currentUser.displayName;
+    const parts = adminEmail.split("@")[0];
+    return parts
+      .split(/[^a-zA-Z0-9]/)
+      .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ");
+  };
+  
+  const adminName = getAdminName();
+  const adminImage = currentUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=f3c623&color=0d0e11&bold=true&size=128`;
+
   const [logoClickCount, setLogoClickCount] = useState(0);
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+    } catch (e) {
+      console.warn("Signout error:", e);
+    }
+    onLogout();
+  };
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"home" | "team-settings" | "slips">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "team-settings" | "slips" | "admin-access">("home");
+
+  // Admin Access Management States & Handlers
+  const [admins, setAdmins] = useState<any[]>(() => {
+    const saved = localStorage.getItem("adaptation_admins_list");
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: "super-admin", name: "Abubakar Sadik Musah", email: "abubakarsadikmusah2004@gmail.com", role: "Super Admin", lastActive: "Active Now", initials: "AS" }
+    ];
+  });
+
+  const [adminSearch, setAdminSearch] = useState("");
+  const [isGoogleSSO, setIsGoogleSSO] = useState(true);
+  const [adminFormEmail, setAdminFormEmail] = useState("");
+  const [adminFormPassword, setAdminFormPassword] = useState("••••••••");
+  const [adminFormRole, setAdminFormRole] = useState("Standard Admin");
+  const [securityLogs, setSecurityLogs] = useState<any[]>(() => {
+    const saved = localStorage.getItem("adaptation_security_logs");
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: "1", time: "09:00", text: "System initialized with database support.", type: "info" }
+    ];
+  });
+
+  const saveAdmins = async (updated: any[]) => {
+    setAdmins(updated);
+    localStorage.setItem("adaptation_admins_list", JSON.stringify(updated));
+    try {
+      for (const admin of updated) {
+        await setDoc(doc(db, "admins", admin.id || admin.email), {
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          lastActive: admin.lastActive || "Active Now",
+          initials: admin.initials || "AD"
+        });
+      }
+      const currentIds = updated.map(a => a.id || a.email);
+      for (const admin of admins) {
+        const adminId = admin.id || admin.email;
+        if (!currentIds.includes(adminId)) {
+          await deleteDoc(doc(db, "admins", adminId));
+        }
+      }
+    } catch (e) {
+      console.error("Firestore Admin sync error:", e);
+    }
+  };
+
+  const saveSecurityLogs = async (updated: any[]) => {
+    setSecurityLogs(updated);
+    localStorage.setItem("adaptation_security_logs", JSON.stringify(updated));
+    try {
+      for (const log of updated) {
+        await setDoc(doc(db, "security_logs", log.id), {
+          time: log.time,
+          text: log.text,
+          type: log.type
+        });
+      }
+    } catch (e) {
+      console.error("Firestore Security log sync error:", e);
+    }
+  };
+
+  const saveActivities = async (updated: ActivityItem[]) => {
+    setActivities(updated);
+    localStorage.setItem("adaptation_activities_list", JSON.stringify(updated));
+    try {
+      for (const act of updated) {
+        await setDoc(doc(db, "activities", act.id || Date.now().toString()), {
+          type: act.type || "info",
+          icon: act.icon || "info",
+          title: act.title,
+          time: act.time || "Just now",
+          author: act.author || adminName,
+          tag: act.tag || ""
+        });
+      }
+      const currentIds = updated.map(a => a.id);
+      for (const act of activities) {
+        if (!currentIds.includes(act.id)) {
+          await deleteDoc(doc(db, "activities", act.id));
+        }
+      }
+    } catch (e) {
+      console.error("Firestore activities sync error:", e);
+    }
+  };
+
+  const handleGrantAdminAccess = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminFormEmail.trim()) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    const emailVal = adminFormEmail.trim();
+
+    // Check if admin already exists
+    if (admins.some(a => a.email.toLowerCase() === emailVal.toLowerCase())) {
+      alert("This email is already registered as an administrator.");
+      return;
+    }
+
+    const emailParts = emailVal.split("@")[0];
+    const computedName = emailParts.charAt(0).toUpperCase() + emailParts.slice(1).replace(/[^a-zA-Z]/g, ' ');
+    const computedInitials = computedName.split(" ").map(n => n.charAt(0)).join("").substring(0, 2).toUpperCase() || "AD";
+
+    const newAdmin = {
+      id: Date.now().toString(),
+      name: computedName,
+      email: emailVal,
+      role: adminFormRole,
+      lastActive: "Active Now",
+      initials: computedInitials
+    };
+
+    const updatedAdmins = [newAdmin, ...admins];
+    saveAdmins(updatedAdmins);
+
+    // Add security log
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const newLog = {
+      id: Date.now().toString(),
+      time: timeStr,
+      text: `Granted ${adminFormRole} access to ${emailVal}`,
+      type: "invite"
+    };
+    saveSecurityLogs([newLog, ...securityLogs]);
+
+    // Reset inputs
+    setAdminFormEmail("");
+    if (!isGoogleSSO) {
+      setAdminFormPassword("••••••••");
+    }
+
+    alert(`Successfully granted ${adminFormRole} access to ${emailVal}!`);
+  };
+
+  const handleDeleteAdmin = (id: string, name: string) => {
+    if (confirm(`Are you sure you want to revoke administrative access for ${name}?`)) {
+      const updated = admins.filter(a => a.id !== id);
+      saveAdmins(updated);
+
+      // Add security log
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const newLog = {
+        id: Date.now().toString(),
+        time: timeStr,
+        text: `Revoked access for ${name}`,
+        type: "error"
+      };
+      saveSecurityLogs([newLog, ...securityLogs]);
+    }
+  };
 
   // States for Slip and Category Management
   const [slipCategories, setSlipCategories] = useState<any[]>(() => {
     const saved = localStorage.getItem("adaptation_slip_categories");
+    let loadedCats = [];
     if (saved) {
       try {
-        return JSON.parse(saved);
+        loadedCats = JSON.parse(saved);
       } catch (e) {}
     }
-    return [
-      { id: "1", name: "Elite Weekend 10", slipsCount: 24, status: "Active" },
-      { id: "2", name: "Daily Value Accumulator", slipsCount: 112, status: "Active" },
-      { id: "3", name: "VIP High Stakes", slipsCount: 8, status: "Paused" },
-      { id: "4", name: "Corner Specialists", slipsCount: 45, status: "Active" }
+
+    const defaults = [
+      { id: "1", name: "World Cup", icon: "sports_soccer", status: "Active" },
+      { id: "2", name: "Bet Builder", icon: "construction", status: "Active" },
+      { id: "3", name: "Roll Over", icon: "cached", status: "Active" },
+      { id: "4", name: "1 Cedi and a Dream", icon: "payments", status: "Active" },
+      { id: "5", name: "Beticology", icon: "psychology", status: "Active" },
+      { id: "6", name: "General / Long Bets", icon: "hourglass_empty", status: "Active" },
+      { id: "7", name: "Engine Room", icon: "settings", status: "Active" }
     ];
+
+    if (loadedCats.length > 0) {
+      // Upgrade loaded cached categories to latest icons
+      const upgraded = loadedCats.map((cat: any) => {
+        let newIcon = cat.icon;
+        if (cat.name === "World Cup" && (cat.icon === "public" || !cat.icon)) newIcon = "sports_soccer";
+        else if (cat.name === "Roll Over" && (cat.icon === "loop" || !cat.icon)) newIcon = "cached";
+        else if (cat.name === "1 Cedi and a Dream" && (cat.icon === "diamond" || !cat.icon)) newIcon = "payments";
+        else if (cat.name === "Beticology" && (cat.icon === "science" || !cat.icon)) newIcon = "psychology";
+        else if (cat.name === "General / Long Bets" && (cat.icon === "trending_up" || !cat.icon)) newIcon = "hourglass_empty";
+        return { ...cat, icon: newIcon };
+      });
+      localStorage.setItem("adaptation_slip_categories", JSON.stringify(upgraded));
+      return upgraded;
+    }
+
+    localStorage.setItem("adaptation_slip_categories", JSON.stringify(defaults));
+    return defaults;
   });
 
   const [slips, setSlips] = useState<any[]>(() => {
@@ -51,10 +260,51 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         return JSON.parse(saved);
       } catch (e) {}
     }
-    return [
-      { id: "1", category: "Elite Weekend 10", matches: 10, odds: "24.50", bookingCode: "#WC-9821" },
-      { id: "2", category: "Daily Value Accumulator", matches: 5, odds: "12.80", bookingCode: "#BOOST-034" }
+    const defaults = [
+      { id: "wc-1", category: "World Cup", matches: 9, odds: "12.40", bookingCode: "AF-WOR-1240", dateUploaded: "Jun 30, 2026" },
+      { id: "wc-2", category: "World Cup", matches: 9, odds: "13.40", bookingCode: "AF-WOR-1340", dateUploaded: "Jun 30, 2026" },
+      { id: "wc-3", category: "World Cup", matches: 9, odds: "14.40", bookingCode: "AF-WOR-1440", dateUploaded: "Jun 30, 2026" },
+      { id: "wc-4", category: "World Cup", matches: 9, odds: "15.40", bookingCode: "AF-WOR-1540", dateUploaded: "Jun 30, 2026" },
+      { id: "wc-5", category: "World Cup", matches: 9, odds: "16.40", bookingCode: "AF-WOR-1640", dateUploaded: "Jun 30, 2026" },
+      
+      { id: "bb-1", category: "Bet Builder", matches: 5, odds: "8.00", bookingCode: "AF-BET-800", dateUploaded: "Jun 30, 2026" },
+      { id: "bb-2", category: "Bet Builder", matches: 5, odds: "8.10", bookingCode: "AF-BET-810", dateUploaded: "Jun 30, 2026" },
+      { id: "bb-3", category: "Bet Builder", matches: 5, odds: "8.20", bookingCode: "AF-BET-820", dateUploaded: "Jun 30, 2026" },
+      { id: "bb-4", category: "Bet Builder", matches: 5, odds: "8.30", bookingCode: "AF-BET-830", dateUploaded: "Jun 30, 2026" },
+      { id: "bb-5", category: "Bet Builder", matches: 5, odds: "8.40", bookingCode: "AF-BET-840", dateUploaded: "Jun 30, 2026" },
+
+      { id: "ro-1", category: "Roll Over", matches: 2, odds: "1.80", bookingCode: "AF-ROL-180", dateUploaded: "Jun 30, 2026" },
+      { id: "ro-2", category: "Roll Over", matches: 2, odds: "1.81", bookingCode: "AF-ROL-181", dateUploaded: "Jun 30, 2026" },
+      { id: "ro-3", category: "Roll Over", matches: 2, odds: "1.82", bookingCode: "AF-ROL-182", dateUploaded: "Jun 30, 2026" },
+      { id: "ro-4", category: "Roll Over", matches: 2, odds: "1.83", bookingCode: "AF-ROL-183", dateUploaded: "Jun 30, 2026" },
+      { id: "ro-5", category: "Roll Over", matches: 2, odds: "1.84", bookingCode: "AF-ROL-184", dateUploaded: "Jun 30, 2026" },
+
+      { id: "cd-1", category: "1 Cedi and a Dream", matches: 25, odds: "950.00", bookingCode: "AF-ONE-95000", dateUploaded: "Jun 30, 2026" },
+      { id: "cd-2", category: "1 Cedi and a Dream", matches: 25, odds: "951.00", bookingCode: "AF-ONE-95100", dateUploaded: "Jun 30, 2026" },
+      { id: "cd-3", category: "1 Cedi and a Dream", matches: 25, odds: "952.00", bookingCode: "AF-ONE-95200", dateUploaded: "Jun 30, 2026" },
+      { id: "cd-4", category: "1 Cedi and a Dream", matches: 25, odds: "953.00", bookingCode: "AF-ONE-95300", dateUploaded: "Jun 30, 2026" },
+      { id: "cd-5", category: "1 Cedi and a Dream", matches: 25, odds: "954.00", bookingCode: "AF-ONE-95400", dateUploaded: "Jun 30, 2026" },
+
+      { id: "bet-1", category: "Beticology", matches: 4, odds: "5.05", bookingCode: "AF-BIC-505", dateUploaded: "Jun 30, 2026" },
+      { id: "bet-2", category: "Beticology", matches: 4, odds: "5.15", bookingCode: "AF-BIC-515", dateUploaded: "Jun 30, 2026" },
+      { id: "bet-3", category: "Beticology", matches: 4, odds: "5.25", bookingCode: "AF-BIC-525", dateUploaded: "Jun 30, 2026" },
+      { id: "bet-4", category: "Beticology", matches: 4, odds: "5.35", bookingCode: "AF-BIC-535", dateUploaded: "Jun 30, 2026" },
+      { id: "bet-5", category: "Beticology", matches: 4, odds: "5.45", bookingCode: "AF-BIC-545", dateUploaded: "Jun 30, 2026" },
+
+      { id: "lb-1", category: "General / Long Bets", matches: 12, odds: "20.50", bookingCode: "AF-LON-2050", dateUploaded: "Jun 30, 2026" },
+      { id: "lb-2", category: "General / Long Bets", matches: 12, odds: "21.50", bookingCode: "AF-LON-2150", dateUploaded: "Jun 30, 2026" },
+      { id: "lb-3", category: "General / Long Bets", matches: 12, odds: "22.50", bookingCode: "AF-LON-2250", dateUploaded: "Jun 30, 2026" },
+      { id: "lb-4", category: "General / Long Bets", matches: 12, odds: "23.50", bookingCode: "AF-LON-2350", dateUploaded: "Jun 30, 2026" },
+      { id: "lb-5", category: "General / Long Bets", matches: 12, odds: "24.50", bookingCode: "AF-LON-2450", dateUploaded: "Jun 30, 2026" },
+
+      { id: "er-1", category: "Engine Room", matches: 3, odds: "3.05", bookingCode: "AF-ENG-305", dateUploaded: "Jun 30, 2026" },
+      { id: "er-2", category: "Engine Room", matches: 3, odds: "3.15", bookingCode: "AF-ENG-315", dateUploaded: "Jun 30, 2026" },
+      { id: "er-3", category: "Engine Room", matches: 3, odds: "3.25", bookingCode: "AF-ENG-325", dateUploaded: "Jun 30, 2026" },
+      { id: "er-4", category: "Engine Room", matches: 3, odds: "3.35", bookingCode: "AF-ENG-335", dateUploaded: "Jun 30, 2026" },
+      { id: "er-5", category: "Engine Room", matches: 3, odds: "3.45", bookingCode: "AF-ENG-345", dateUploaded: "Jun 30, 2026" }
     ];
+    localStorage.setItem("adaptation_slips_list", JSON.stringify(defaults));
+    return defaults;
   });
 
   const [categoryFormName, setCategoryFormName] = useState("");
@@ -62,18 +312,218 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   // Upload Slip Form States
   const [slipFormMatches, setSlipFormMatches] = useState<number | "">("");
-  const [slipFormCategory, setSlipFormCategory] = useState("Elite Weekend 10");
+  const [slipFormCategory, setSlipFormCategory] = useState("World Cup");
   const [slipFormOdds, setSlipFormOdds] = useState("");
   const [slipFormBookingCode, setSlipFormBookingCode] = useState("");
 
-  const saveSlipCategories = (updated: any[]) => {
+  useEffect(() => {
+    const unsubAdmins = onSnapshot(collection(db, "admins"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setAdmins(list);
+        localStorage.setItem("adaptation_admins_list", JSON.stringify(list));
+      }
+    }, (err) => console.log("Admins database offline or not configured yet.", err));
+
+    const unsubLogs = onSnapshot(collection(db, "security_logs"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setSecurityLogs(list);
+        localStorage.setItem("adaptation_security_logs", JSON.stringify(list));
+      }
+    }, (err) => console.log("Security logs database offline or not configured yet.", err));
+
+    const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setSlipCategories(list);
+        localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
+      }
+    }, (err) => console.log("Categories database offline or not configured yet.", err));
+
+    const unsubSlips = onSnapshot(collection(db, "slips"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setSlips(list);
+        localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
+      }
+    }, (err) => console.log("Slips database offline or not configured yet.", err));
+
+    const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        setTeamMembers(list);
+        localStorage.setItem("adaptation_team_members", JSON.stringify(list));
+      }
+    }, (err) => console.log("Team members database offline or not configured yet.", err));
+
+    const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        list.sort((a, b) => (b.id || "").localeCompare(a.id || ""));
+        setActivities(list);
+        localStorage.setItem("adaptation_activities_list", JSON.stringify(list));
+      } else {
+        setActivities([]);
+        localStorage.setItem("adaptation_activities_list", JSON.stringify([]));
+      }
+    }, (err) => console.log("Activities database offline or not configured yet.", err));
+
+    return () => {
+      unsubAdmins();
+      unsubLogs();
+      unsubCats();
+      unsubSlips();
+      unsubTeam();
+      unsubActivities();
+    };
+  }, []);
+
+  const saveSlipCategories = async (updated: any[]) => {
     setSlipCategories(updated);
     localStorage.setItem("adaptation_slip_categories", JSON.stringify(updated));
+    try {
+      for (const cat of updated) {
+        await setDoc(doc(db, "categories", cat.id || cat.name), {
+          name: cat.name,
+          icon: cat.icon || "receipt_long",
+          status: cat.status || "Active"
+        });
+      }
+      const currentIds = updated.map(c => c.id || c.name);
+      for (const cat of slipCategories) {
+        const catId = cat.id || cat.name;
+        if (!currentIds.includes(catId)) {
+          await deleteDoc(doc(db, "categories", catId));
+        }
+      }
+    } catch (e) {
+      console.error("Firestore Category sync error:", e);
+    }
   };
 
-  const saveSlips = (updated: any[]) => {
+  const saveSlips = async (updated: any[]) => {
     setSlips(updated);
     localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
+    try {
+      for (const slip of updated) {
+        await setDoc(doc(db, "slips", slip.id), {
+          category: slip.category,
+          matches: String(slip.matches),
+          odds: slip.odds,
+          bookingCode: slip.bookingCode || "",
+          dateUploaded: slip.dateUploaded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        });
+      }
+      const currentIds = updated.map(s => s.id);
+      for (const slip of slips) {
+        if (!currentIds.includes(slip.id)) {
+          await deleteDoc(doc(db, "slips", slip.id));
+        }
+      }
+    } catch (e) {
+      console.error("Firestore Slips sync error:", e);
+    }
+  };
+
+  // Edit Slip Modal States and Handlers
+  const [isEditSlipModalOpen, setIsEditSlipModalOpen] = useState(false);
+  const [editingSlip, setEditingSlip] = useState<any | null>(null);
+  const [editSlipCategory, setEditSlipCategory] = useState("");
+  const [editSlipMatches, setEditSlipMatches] = useState<number | "">("");
+  const [editSlipOdds, setEditSlipOdds] = useState("");
+  const [editSlipBookingCode, setEditSlipBookingCode] = useState("");
+  const [editSlipDateUploaded, setEditSlipDateUploaded] = useState("");
+
+  const handleOpenEditSlipModal = (slip: any) => {
+    setEditingSlip(slip);
+    setEditSlipCategory(slip.category);
+    setEditSlipMatches(slip.matches);
+    setEditSlipOdds(slip.odds);
+    setEditSlipBookingCode(slip.bookingCode);
+    setEditSlipDateUploaded(slip.dateUploaded || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }));
+    setIsEditSlipModalOpen(true);
+  };
+
+  const handleSaveEditSlip = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSlip) return;
+    const updated = slips.map(s => s.id === editingSlip.id ? {
+      ...s,
+      category: editSlipCategory,
+      matches: Number(editSlipMatches),
+      odds: editSlipOdds,
+      bookingCode: editSlipBookingCode,
+      dateUploaded: editSlipDateUploaded
+    } : s);
+    saveSlips(updated);
+    
+    // Push modification log to activity feed
+    const logTitle = `Ticket Updated: ${editSlipBookingCode} in ${editSlipCategory}`;
+    const newActivity: ActivityItem = {
+      id: Date.now().toString(),
+      type: "neutral" as const,
+      icon: "edit",
+      title: logTitle,
+      time: "Just now",
+      author: adminName,
+      tag: "Modified"
+    };
+    saveActivities([newActivity, ...activities]);
+
+    setIsEditSlipModalOpen(false);
+    setEditingSlip(null);
+    alert("Sports betting slip updated successfully!");
+  };
+
+  const handleDeleteSlip = (slipId: string) => {
+    const slipToDelete = slips.find(s => s.id === slipId);
+    if (!slipToDelete) return;
+    if (confirm(`Are you sure you want to delete slip "${slipToDelete.bookingCode || 'N/A'}"?`)) {
+      const updated = slips.filter(s => s.id !== slipId);
+      saveSlips(updated);
+
+      // Decrement the slips count for the category
+      const updatedCategories = slipCategories.map(c => 
+        c.name === slipToDelete.category 
+          ? { ...c, slipsCount: Math.max(0, c.slipsCount - 1) } 
+          : c
+      );
+      saveSlipCategories(updatedCategories);
+
+      // Push activity log
+      const logTitle = `Ticket Deleted: ${slipToDelete.bookingCode} from ${slipToDelete.category}`;
+      const newActivity: ActivityItem = {
+        id: Date.now().toString(),
+        type: "error" as const,
+        icon: "delete_forever",
+        title: logTitle,
+        time: "Just now",
+        author: adminName,
+        tag: "Removed"
+      };
+      saveActivities([newActivity, ...activities]);
+
+      alert("Sports betting slip successfully deleted!");
+    }
   };
 
   // State for Team Members
@@ -152,9 +602,26 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
 
-  const saveTeamMembers = (newTeam: TeamMember[]) => {
+  const saveTeamMembers = async (newTeam: TeamMember[]) => {
     setTeamMembers(newTeam);
     localStorage.setItem("adaptation_team_members", JSON.stringify(newTeam));
+    try {
+      for (const m of newTeam) {
+        await setDoc(doc(db, "team_members", m.id), {
+          name: m.name,
+          role: m.role,
+          image: m.image
+        });
+      }
+      const currentIds = newTeam.map(m => m.id);
+      for (const m of teamMembers) {
+        if (!currentIds.includes(m.id)) {
+          await deleteDoc(doc(db, "team_members", m.id));
+        }
+      }
+    } catch (e) {
+      console.error("Firestore Team sync error:", e);
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -197,7 +664,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     saveTeamMembers(updated);
   };
 
-  const handleSavePayments = () => {
+  const handleSavePayments = async () => {
     localStorage.setItem("momo_number", momoNumberInput);
     localStorage.setItem("momo_account_name", momoAccountNameInput);
     localStorage.setItem("momo_reference", momoReferenceInput);
@@ -206,11 +673,25 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     localStorage.setItem("bank_account_holder", bankAccountHolderInput);
     localStorage.setItem("bank_branch", bankBranchInput);
     
+    try {
+      await setDoc(doc(db, "payment_settings", "global"), {
+        momoNumber: momoNumberInput,
+        momoAccountName: momoAccountNameInput,
+        momoReference: momoReferenceInput,
+        bankName: bankNameInput,
+        bankAccountNumber: bankAccountNumberInput,
+        bankAccountHolder: bankAccountHolderInput,
+        bankBranch: bankBranchInput
+      });
+    } catch (e) {
+      console.error("Firestore Payment settings sync error:", e);
+    }
+    
     // Dispatch custom storage event so other views can update immediately
     window.dispatchEvent(new Event("storage"));
 
-    setPaymentSuccessMessage("Payment settings updated successfully!");
-    setTimeout(() => setPaymentSuccessMessage(null), 3000);
+    setPaymentSuccessMessage("Payment settings synchronized with Firestore database successfully!");
+    setTimeout(() => setPaymentSuccessMessage(null), 3500);
   };
 
   const handleCancelPayments = () => {
@@ -227,72 +708,77 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   // State for Recent Activities list to make it fully interactive
-  const [activities, setActivities] = useState<ActivityItem[]>([
-    {
-      id: "1",
-      type: "success",
-      icon: "check_circle",
-      title: "New Slip Created: World Cup Qualifier Parlay (#WC-9821)",
-      time: "2 minutes ago",
-      author: "Admin Marcus",
-      tag: "Published"
-    },
-    {
-      id: "2",
-      type: "neutral",
-      icon: "update",
-      title: "Prediction Updated: Real Madrid vs Barcelona (Elite Pick)",
-      time: "45 minutes ago",
-      author: "System Automated",
-      tag: "Odds Shift"
-    },
-    {
-      id: "3",
-      type: "priority",
-      icon: "volunteer_activism",
-      title: "New Donation Received: 0.5 ETH from User_9982",
-      time: "1 hour ago",
-      author: "Community Support",
-      tag: "Priority"
-    },
-    {
-      id: "4",
-      type: "error",
-      icon: "warning",
-      title: "System Alert: Multiple reports on expired booking codes.",
-      time: "3 hours ago",
-      author: "Support Desk",
-      tag: "Action Req."
+  const [activities, setActivities] = useState<ActivityItem[]>(() => {
+    const saved = localStorage.getItem("adaptation_activities_list");
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
     }
-  ]);
+    return [];
+  });
 
-  // Form states for creating a new activity slip
+  // Form states for uploading a new betting slip via Pop-up Modal
   const [isNewSlipModalOpen, setIsNewSlipModalOpen] = useState(false);
-  const [newSlipTitle, setNewSlipTitle] = useState("");
+  const [newSlipMatches, setNewSlipMatches] = useState<number | "">("");
   const [newSlipCategory, setNewSlipCategory] = useState("World Cup");
-  const [newSlipStatus, setNewSlipStatus] = useState<"success" | "neutral" | "priority" | "error">("success");
+  const [newSlipOdds, setNewSlipOdds] = useState("");
+  const [newSlipBookingCode, setNewSlipBookingCode] = useState("");
 
-  const handleCreateActivity = (e: React.FormEvent) => {
+  const handleModalUploadSlip = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSlipTitle.trim()) return;
+    if (!newSlipMatches || !newSlipOdds || !newSlipBookingCode) {
+      alert("Please complete all fields.");
+      return;
+    }
 
-    const newActivity: ActivityItem = {
+    // Create new slip item
+    const newSlip = {
       id: Date.now().toString(),
-      type: newSlipStatus,
-      icon: newSlipStatus === "success" ? "check_circle" : newSlipStatus === "neutral" ? "update" : newSlipStatus === "priority" ? "volunteer_activism" : "warning",
-      title: `${newSlipCategory} - ${newSlipTitle}`,
-      time: "Just now",
-      author: "Admin Officer",
-      tag: newSlipStatus === "success" ? "Published" : newSlipStatus === "neutral" ? "Odds Shift" : newSlipStatus === "priority" ? "Priority" : "Action Req."
+      category: newSlipCategory,
+      matches: Number(newSlipMatches),
+      odds: newSlipOdds,
+      bookingCode: newSlipBookingCode,
+      dateUploaded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     };
 
-    setActivities([newActivity, ...activities]);
-    setNewSlipTitle("");
+    saveSlips([newSlip, ...slips]);
+
+    // Increment the slips count for selected category
+    const updatedCategories = slipCategories.map(c => 
+      c.name === newSlipCategory 
+        ? { ...c, slipsCount: c.slipsCount + 1 } 
+        : c
+    );
+    saveSlipCategories(updatedCategories);
+
+    // Push to activity logs
+    const logTitle = `New Ticket Published: ${newSlipCategory} with ${newSlipMatches} Matches @ ${newSlipOdds} Odds (${newSlipBookingCode})`;
+    const newActivity: ActivityItem = {
+      id: Date.now().toString(),
+      type: "success" as const,
+      icon: "check_circle",
+      title: logTitle,
+      time: "Just now",
+      author: adminName,
+      tag: "Published"
+    };
+    saveActivities([newActivity, ...activities]);
+
+    // Reset form fields
+    setNewSlipMatches("");
+    setNewSlipOdds("");
+    setNewSlipBookingCode("");
     setIsNewSlipModalOpen(false);
+
+    alert(`Sports betting slip ${newSlip.bookingCode} successfully published!`);
   };
 
   const handleDeleteActivity = (id: string) => {
-    setActivities(activities.filter(activity => activity.id !== id));
+    saveActivities(activities.filter(activity => activity.id !== id));
+  };
+
+  // Get dynamic count of slips for a specific category
+  const getSlipsCountByCategory = (categoryName: string) => {
+    return slips.filter(s => s.category.toLowerCase() === categoryName.toLowerCase()).length;
   };
 
   // World Cup or general filtering based on search
@@ -344,7 +830,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             }`}
           >
             <span className="material-symbols-outlined text-lg">settings_suggest</span>
-            <span className="text-xs font-bold uppercase tracking-wider">Team Payment</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Team & Payment</span>
           </button>
 
           <button 
@@ -356,14 +842,26 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             }`}
           >
             <span className="material-symbols-outlined text-lg">receipt_long</span>
-            <span className="text-xs font-bold uppercase tracking-wider">Select Management</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Slip Management</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab("admin-access")}
+            className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-left ${
+              activeTab === "admin-access" 
+                ? "bg-white text-[#526600] font-bold shadow-sm border-l-4 border-[#f3c623]" 
+                : "text-[#5d5e64] hover:bg-neutral-200/50 hover:text-[#1a1c1d]"
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Admin Access</span>
           </button>
         </nav>
 
         {/* Sidebar Footer with Logout */}
         <div className="p-4 border-t border-neutral-200/60">
           <button 
-            onClick={onLogout}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 bg-[#ba1a1a]/10 hover:bg-[#ba1a1a]/20 text-[#ba1a1a] font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer justify-center"
           >
             <span className="material-symbols-outlined text-sm">logout</span>
@@ -407,13 +905,14 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <div className="w-9 h-9 rounded-full overflow-hidden border border-neutral-200 relative shrink-0">
                 <img 
                   className="w-full h-full object-cover" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiZge3SGRpL8JQPL9-_323EEgE2C5jrjAqD8uNQYiBYUEXe-tLmQFHM6TOuw1Q20Tb99tTsJY5BcxppzcblAPwjQ6CueL8NeOprJcnw4wYYHhn1CqCUFqg_m5lcWuyYq1V7N7onFILbC6WW80LibGBLTJHZL4YyLiOxP5_rxXe02wTgRym2fuPRsORrD2UDmiPnimSkLUsT8Qgk0TWm6i76hAoQshxgox8EwLUfxWHFiHoIqJ106lYvh-UTxLiIaNe7eYgoTFsGQ" 
-                  alt="Analyst Portrait" 
+                  src={adminImage} 
+                  alt={adminName} 
+                  referrerPolicy="no-referrer"
                 />
               </div>
               <div className="hidden lg:flex flex-col">
-                <span className="text-[11px] font-bold text-[#1a1c1d] leading-none">Marcus Payne</span>
-                <span className="text-[9px] text-[#5d5e64] font-medium mt-0.5 leading-none">Senior Analyst</span>
+                <span className="text-[11px] font-bold text-[#1a1c1d] leading-none">{adminName}</span>
+                <span className="text-[9px] text-[#5d5e64] font-medium mt-0.5 leading-none">Admin</span>
               </div>
             </div>
           </div>
@@ -489,7 +988,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     }`}
                   >
                     <span className="material-symbols-outlined text-lg">settings_suggest</span>
-                    <span className="text-xs font-bold uppercase tracking-wider">Team Payment</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Team & Payment</span>
                   </button>
 
                   <button 
@@ -499,12 +998,22 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     }`}
                   >
                     <span className="material-symbols-outlined text-lg">receipt_long</span>
-                    <span className="text-xs font-bold uppercase tracking-wider">Select Management</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Slip Management</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setActiveTab("admin-access"); setIsMobileNavOpen(false); }}
+                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all cursor-pointer text-left ${
+                      activeTab === "admin-access" ? "bg-neutral-100 text-[#526600] font-bold" : "text-[#5d5e64]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Admin Access</span>
                   </button>
                 </div>
 
                 <div className="p-4 border-t border-neutral-100">
-                  <button onClick={onLogout} className="w-full flex items-center justify-center gap-2.5 py-3 bg-[#ba1a1a]/10 hover:bg-[#ba1a1a]/20 text-[#ba1a1a] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">
+                  <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2.5 py-3 bg-[#ba1a1a]/10 hover:bg-[#ba1a1a]/20 text-[#ba1a1a] font-bold rounded-xl text-xs uppercase tracking-wider transition-all">
                     <span className="material-symbols-outlined text-sm">logout</span>
                     <span>Exit Portal</span>
                   </button>
@@ -547,7 +1056,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-emerald-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-emerald-700">{getSlipsCountByCategory("World Cup")}</span>
                     <span className="text-[10px] text-emerald-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -564,7 +1073,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-indigo-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-indigo-700">{getSlipsCountByCategory("Bet Builder")}</span>
                     <span className="text-[10px] text-indigo-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -581,7 +1090,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-violet-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-violet-700">{getSlipsCountByCategory("Roll Over")}</span>
                     <span className="text-[10px] text-violet-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -598,7 +1107,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-amber-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-amber-700">{getSlipsCountByCategory("1 Cedi and a Dream")}</span>
                     <span className="text-[10px] text-amber-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -615,7 +1124,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-rose-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-rose-700">{getSlipsCountByCategory("Beticology")}</span>
                     <span className="text-[10px] text-rose-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -632,7 +1141,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-teal-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-teal-700">{getSlipsCountByCategory("General / Long Bets")}</span>
                     <span className="text-[10px] text-teal-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
@@ -649,40 +1158,27 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </span>
                   </div>
                   <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-sky-700">5</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-sky-700">{getSlipsCountByCategory("Engine Room")}</span>
                     <span className="text-[10px] text-sky-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
                   </div>
                 </div>
 
                 {/* Quick Actions Card */}
                 <div className="bg-neutral-900 border border-neutral-850 rounded-[20px] p-4 sm:p-5 flex flex-col justify-between shadow-lg relative overflow-hidden text-white col-span-2 sm:col-span-1">
-                  <div>
-                    <h4 className="font-display text-xs font-extrabold uppercase tracking-widest text-[#f3c623]">Quick Actions</h4>
-                    <p className="text-[11px] text-neutral-400 mt-0.5 font-medium leading-tight">Publish slips or backup activity databases.</p>
-                  </div>
-                  <div className="flex gap-2.5 mt-4">
-                    <button 
-                      onClick={() => setIsNewSlipModalOpen(true)}
-                      className="bg-[#f3c623] text-black hover:bg-[#e2b516] p-2 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center flex-1 cursor-pointer"
-                      title="Add Activity"
-                    >
-                      <span className="material-symbols-outlined text-lg font-bold">add_circle</span>
-                    </button>
-                    <button 
-                      onClick={() => alert("Activity log link copied! Ready to share with administrators.")}
-                      className="bg-neutral-800 text-neutral-200 hover:bg-neutral-700 p-2 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center flex-1 cursor-pointer"
-                      title="Share Activity Feed"
-                    >
-                      <span className="material-symbols-outlined text-lg">share</span>
-                    </button>
-                    <button 
-                      onClick={() => alert("Database activity log backed up to cloud systems successfully.")}
-                      className="bg-neutral-800 text-neutral-200 hover:bg-neutral-700 p-2 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center flex-1 cursor-pointer"
-                      title="Download Backup"
-                    >
-                      <span className="material-symbols-outlined text-lg">cloud_download</span>
-                    </button>
-                  </div>
+                   <div>
+                     <h4 className="font-display text-xs font-extrabold uppercase tracking-widest text-[#f3c623]">Quick Actions</h4>
+                     <p className="text-[11px] text-neutral-400 mt-0.5 font-medium leading-tight">Create and publish a brand new sports betting forecast slip directly into the user ecosystem.</p>
+                   </div>
+                   <div className="mt-4">
+                     <button 
+                       onClick={() => setIsNewSlipModalOpen(true)}
+                       className="bg-[#f3c623] text-black hover:bg-[#e2b516] py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 w-full font-bold text-xs uppercase tracking-wider cursor-pointer shadow-sm"
+                       title="ADD A NEW SLIP"
+                     >
+                       <span className="material-symbols-outlined text-lg font-bold">add_circle</span>
+                       <span>ADD A NEW SLIP</span>
+                     </button>
+                   </div>
                 </div>
 
               </section>
@@ -705,50 +1201,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       )}
                       <button 
                         onClick={() => {
-                          setActivities([
-                            {
-                              id: "1",
-                              type: "success",
-                              icon: "check_circle",
-                              title: "New Slip Created: World Cup Qualifier Parlay (#WC-9821)",
-                              time: "2 minutes ago",
-                              author: "Admin Marcus",
-                              tag: "Published"
-                            },
-                            {
-                              id: "2",
-                              type: "neutral",
-                              icon: "update",
-                              title: "Prediction Updated: Real Madrid vs Barcelona (Elite Pick)",
-                              time: "45 minutes ago",
-                              author: "System Automated",
-                              tag: "Odds Shift"
-                            },
-                            {
-                              id: "3",
-                              type: "priority",
-                              icon: "volunteer_activism",
-                              title: "New Donation Received: 0.5 ETH from User_9982",
-                              time: "1 hour ago",
-                              author: "Community Support",
-                              tag: "Priority"
-                            },
-                            {
-                              id: "4",
-                              type: "error",
-                              icon: "warning",
-                              title: "System Alert: Multiple reports on expired booking codes.",
-                              time: "3 hours ago",
-                              author: "Support Desk",
-                              tag: "Action Req."
-                            }
-                          ]);
+                          saveActivities([]);
                           setSearchQuery("");
-                          alert("Activity logs refreshed to baseline system snapshot.");
+                          alert("All system activity logs have been cleared from the database.");
                         }}
                         className="text-[#526600] font-sans text-xs font-bold hover:underline cursor-pointer"
                       >
-                        Reset Log
+                        Clear Logs
                       </button>
                     </div>
                   </div>
@@ -1172,9 +1631,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </tbody>
                       </table>
                     </div>
-                  </div>
-
-                  {/* Growth Insights card */}
+                  </div>                   {/* Growth Insights card */}
                   <div className="bg-[#f9f9fb] border border-neutral-200 rounded-[20px] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined text-[#526600] bg-[#526600]/10 p-2 rounded-xl">trending_up</span>
@@ -1191,10 +1648,127 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       <div className="w-[1px] h-8 bg-neutral-200"></div>
                       <div className="flex flex-col">
                         <span className="text-xl font-black text-[#526600] leading-none">
-                          {slipCategories.reduce((acc, curr) => acc + (curr.status === "Active" ? curr.slipsCount : 0), 0)}
+                          {slipCategories.reduce((acc, curr) => acc + (curr.status === "Active" ? slips.filter(s => s.category === curr.name).length : 0), 0)}
                         </span>
                         <span className="text-[9px] font-bold text-[#5d5e64] uppercase tracking-wider mt-1">Active Forecasts</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Booking Codes History Directory */}
+                  <div className="bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex flex-col gap-5 w-full mt-6">
+                    <div>
+                      <h3 className="font-display text-base sm:text-lg font-extrabold text-[#1a1c1d] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 rounded-xl text-lg font-bold">history</span>
+                        Booking Code Directory & History
+                      </h3>
+                      <p className="text-[11px] text-[#5d5e64] mt-1">Manage and edit active sports betting slips currently visible in the ecosystem.</p>
+                    </div>
+
+                    {/* Desktop View Table */}
+                    <div className="hidden md:block overflow-x-auto w-full border border-neutral-100 rounded-xl">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-neutral-50 text-[10px] font-bold text-[#5d5e64] uppercase tracking-wider border-b border-neutral-100">
+                            <th className="py-3 px-4">Booking Code</th>
+                            <th className="py-3 px-4">Category</th>
+                            <th className="py-3 px-4 text-center">Matches</th>
+                            <th className="py-3 px-4 text-center">Odds</th>
+                            <th className="py-3 px-4">Uploaded Date</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 text-xs">
+                          {slips.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-neutral-400 font-medium">
+                                No booking codes uploaded yet. Use the form on the right to upload one.
+                              </td>
+                            </tr>
+                          ) : (
+                            slips.map((slip) => (
+                              <tr key={slip.id} className="hover:bg-neutral-50/50 transition-colors">
+                                <td className="py-3 px-4 font-mono font-bold text-neutral-800">{slip.bookingCode}</td>
+                                <td className="py-3 px-4">
+                                  <span className="bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                                    {slip.category}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-center font-medium text-neutral-600">{slip.matches} Matches</td>
+                                <td className="py-3 px-4 text-center font-bold text-neutral-900">{slip.odds}</td>
+                                <td className="py-3 px-4 text-neutral-500">{slip.dateUploaded || "Jun 30, 2026"}</td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => handleOpenEditSlipModal(slip)}
+                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Edit Slip"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSlip(slip.id)}
+                                      className="p-1.5 text-error hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Delete Slip"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile View Stack */}
+                    <div className="block md:hidden flex flex-col gap-3">
+                      {slips.length === 0 ? (
+                        <div className="py-8 text-center text-neutral-400 font-medium text-xs">
+                          No booking codes uploaded yet. Use the form on the right to upload one.
+                        </div>
+                      ) : (
+                        slips.map((slip) => (
+                          <div key={slip.id} className="bg-neutral-50 rounded-xl p-4 border border-neutral-100 flex flex-col gap-2.5">
+                            <div className="flex justify-between items-start">
+                              <span className="font-mono font-bold text-xs text-neutral-800 bg-white border border-neutral-200 px-2 py-1 rounded">
+                                {slip.bookingCode}
+                              </span>
+                              <span className="bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                                {slip.category}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-600">
+                              <div>
+                                <span className="text-neutral-400">Matches:</span> <strong className="text-neutral-800">{slip.matches} Matches</strong>
+                              </div>
+                              <div>
+                                <span className="text-neutral-400">Odds:</span> <strong className="text-neutral-800">{slip.odds}</strong>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-neutral-400">Uploaded:</span> <strong className="text-neutral-800">{slip.dateUploaded || "Jun 30, 2026"}</strong>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t border-neutral-200/50 pt-2 mt-1">
+                              <button
+                                onClick={() => handleOpenEditSlipModal(slip)}
+                                className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-xs">edit</span> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSlip(slip.id)}
+                                className="px-3 py-1.5 text-error hover:bg-red-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-xs">delete</span> Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </section>
@@ -1224,7 +1798,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           category: slipFormCategory,
                           matches: Number(slipFormMatches),
                           odds: slipFormOdds,
-                          bookingCode: slipFormBookingCode
+                          bookingCode: slipFormBookingCode,
+                          dateUploaded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
                         };
 
                         saveSlips([newSlip, ...slips]);
@@ -1245,10 +1820,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           icon: "check_circle",
                           title: logTitle,
                           time: "Just now",
-                          author: "Senior Analyst Marcus",
+                          author: adminName,
                           tag: "Published"
                         };
-                        setActivities([newActivity, ...activities]);
+                        saveActivities([newActivity, ...activities]);
 
                         // Reset form
                         setSlipFormMatches("");
@@ -1368,6 +1943,319 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <span className="material-symbols-outlined text-neutral-400 text-sm">content_copy</span>
                       </div>
                     )}
+                  </div>
+                </section>
+
+              </div>
+            </div>
+          )}
+
+          {activeTab === "admin-access" && (
+            <div className="flex flex-col gap-6 animate-fade-in w-full">
+              {/* Page Header */}
+              <div className="mb-2">
+                <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1a1c1d] tracking-tight">Admin Access Management</h1>
+                <p className="text-xs sm:text-sm text-[#5d5e64] mt-1">Control the keys to the elite stadium. Add new administrators, manage existing permissions, and ensure safety guidelines are upheld.</p>
+              </div>
+
+              {/* Bento Grid Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start w-full">
+                
+                {/* Section 1: Add Administrator Form (Bento Large) */}
+                <section className="lg:col-span-7 flex flex-col gap-5 w-full">
+                  <div className="bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex flex-col gap-6 w-full">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-neutral-400">Add New Administrator</h3>
+                      <span className="bg-[#f3c623]/20 text-[#8f7200] px-3 py-1 rounded-full text-[10px] font-bold">Security Level 1</span>
+                    </div>
+
+                    <form onSubmit={handleGrantAdminAccess} className="flex flex-col gap-5">
+                      
+                      {/* Google Authentication SSO Option */}
+                      <div className={`p-4 rounded-2xl border transition-all duration-300 ${isGoogleSSO ? 'bg-[#526600]/5 border-[#526600]/30' : 'bg-neutral-50 border-neutral-200'}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-white rounded-xl shadow-xs flex items-center justify-center border border-neutral-200">
+                              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                              </svg>
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-neutral-800 block">Google SSO Domain Auth</span>
+                              <span className="text-[9px] text-[#5d5e64] block">Verify instantly via Workspace SSO account</span>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={isGoogleSSO}
+                              onChange={(e) => {
+                                setIsGoogleSSO(e.target.checked);
+                                setAdminFormEmail("");
+                              }}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-9 h-5 bg-neutral-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#526600]" />
+                          </label>
+                        </div>
+                        
+                        <div className="relative">
+                          <input 
+                            type="email"
+                            required={isGoogleSSO}
+                            disabled={!isGoogleSSO}
+                            value={isGoogleSSO ? adminFormEmail : ""}
+                            onChange={(e) => setAdminFormEmail(e.target.value)}
+                            placeholder={isGoogleSSO ? "Enter administrator's organization email" : "SSO disabled - use manual fields below"}
+                            className={`w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623] ${!isGoogleSSO ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          />
+                          <p className="text-[10px] text-neutral-400 mt-2 px-1">Allows secure passwordless sign-on using verified organization credentials.</p>
+                        </div>
+                      </div>
+
+                      {/* Manual / Verification Method */}
+                      <div className="flex items-center gap-4 text-neutral-300">
+                        <div className="h-[1px] flex-1 bg-neutral-200"></div>
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">OR</span>
+                        <div className="h-[1px] flex-1 bg-neutral-200"></div>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border transition-all duration-300 ${!isGoogleSSO ? 'bg-[#f3c623]/5 border-[#f3c623]' : 'bg-neutral-50 border-neutral-200'}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-xs font-bold text-neutral-800">Email Verification & Password Method</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!isGoogleSSO}
+                              onChange={(e) => {
+                                setIsGoogleSSO(!e.target.checked);
+                                setAdminFormEmail("");
+                              }}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-9 h-5 bg-neutral-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#f3c623]" />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Direct Email</label>
+                            <input 
+                              type="email"
+                              required={!isGoogleSSO}
+                              disabled={isGoogleSSO}
+                              value={!isGoogleSSO ? adminFormEmail : ""}
+                              onChange={(e) => setAdminFormEmail(e.target.value)}
+                              placeholder={isGoogleSSO ? "Disabled" : "e.g. coach@adaptation.com"}
+                              className={`bg-white border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623] ${isGoogleSSO ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Temporary Password</label>
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                required={!isGoogleSSO}
+                                disabled={isGoogleSSO}
+                                value={isGoogleSSO ? "" : adminFormPassword}
+                                onChange={(e) => setAdminFormPassword(e.target.value)}
+                                placeholder={isGoogleSSO ? "Disabled" : "Enter or auto-generate"}
+                                className={`w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623] pr-10 ${isGoogleSSO ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              />
+                              <span className="material-symbols-outlined absolute right-3 top-3 text-neutral-400 text-sm">visibility</span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-2 px-1">An invitation with verification details is sent instantly to setup passwordless verification flow.</p>
+                      </div>
+
+                      {/* Role Selector */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Access Level / Authorization Role</label>
+                        <select 
+                          value={adminFormRole} 
+                          onChange={(e) => setAdminFormRole(e.target.value)}
+                          className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none cursor-pointer"
+                        >
+                          <option value="Standard Admin">Standard Admin (Manage Slips & Teams)</option>
+                          <option value="Super Admin">Super Admin (Full System Access)</option>
+                        </select>
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        className="w-full py-4 rounded-xl bg-[#f3c623] hover:bg-[#e0b418] text-black font-black text-xs uppercase tracking-widest transition-all shadow-md cursor-pointer flex justify-center items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm font-bold">shield_person</span>
+                        <span>Grant Administrative Access</span>
+                      </button>
+
+                    </form>
+                  </div>
+                </section>
+
+                {/* Section 2: Platform Integrity & Security Logs (Bento Small) */}
+                <section className="lg:col-span-5 flex flex-col gap-6 w-full">
+                  
+                  {/* Platform Integrity Card */}
+                  <div className="bg-neutral-900 border border-neutral-850 rounded-[24px] p-6 sm:p-8 text-white relative overflow-hidden flex flex-col justify-between shadow-xl min-h-[190px]">
+                    <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#f3c623]"></div>
+                    <div>
+                      <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-[#f3c623]">Platform Integrity</h3>
+                      <div className="flex justify-between items-end mt-6 mb-2">
+                        <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Active Super Admins</span>
+                        <span className="text-3xl font-black text-white">{admins.filter(a => a.role === "Super Admin").length.toString().padStart(2, '0')}</span>
+                      </div>
+                      <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-[#f3c623] transition-all duration-500 animate-pulse" 
+                          style={{ width: `${Math.min(100, (admins.filter(a => a.role === "Super Admin").length / 10) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-3 leading-relaxed">
+                        Security protocols advise keeping Super Admin count below 5 to reduce structural system vulnerability.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Recent Logs Card */}
+                  <div className="bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex flex-col gap-4 w-full">
+                    <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-neutral-400">Recent Security Logs</h3>
+                    <div className="space-y-3 mt-2">
+                      {securityLogs.map((log) => (
+                        <div key={log.id} className="flex items-start gap-3 text-xs border-b border-neutral-50 pb-2 last:border-0 last:pb-0">
+                          <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${log.type === 'error' ? 'bg-[#ba1a1a]' : log.type === 'invite' ? 'bg-green-500' : 'bg-[#f3c623]'}`} />
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="text-neutral-400 font-mono text-[9px]">{log.time}</span>
+                              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide">
+                                {log.type === 'error' ? 'AUTH REVOKED' : log.type === 'invite' ? 'ACCESS GRANTED' : 'SYSTEM LOG'}
+                              </span>
+                            </div>
+                            <span className="text-neutral-700 font-medium mt-0.5">{log.text}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => alert("Current session security logs saved to administrative console partition.")} 
+                      className="mt-2 text-neutral-500 hover:text-[#526600] font-bold text-[10px] uppercase tracking-wider text-left hover:underline flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-xs">history_edu</span>
+                      <span>Export Full Audit Trail</span>
+                    </button>
+                  </div>
+
+                </section>
+
+                {/* Section 3: Current Administrators Table (Bento Full Width) */}
+                <section className="lg:col-span-12 w-full mt-2">
+                  <div className="bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex flex-col gap-5 w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-display text-base sm:text-lg font-extrabold text-[#1a1c1d] flex items-center gap-2">
+                          <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 rounded-xl text-lg font-bold">shield_person</span>
+                          Current Administrators
+                        </h3>
+                        <p className="text-[11px] text-[#5d5e64] mt-1">Review, search and revoke roles for team managers and systems architects.</p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Search field */}
+                        <div className="relative w-full sm:w-64">
+                          <input 
+                            type="text"
+                            value={adminSearch}
+                            onChange={(e) => setAdminSearch(e.target.value)}
+                            placeholder="Filter by name or email..."
+                            className="bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623] w-full"
+                          />
+                          <span className="material-symbols-outlined absolute left-3 top-3 text-neutral-400 text-xs">search</span>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const csvContent = "data:text/csv;charset=utf-8," + "Name,Email,Role,LastActive\n" + admins.map(a => `"${a.name}","${a.email}","${a.role}","${a.lastActive}"`).join("\n");
+                            const encodedUri = encodeURI(csvContent);
+                            const link = document.createElement("a");
+                            link.setAttribute("href", encodedUri);
+                            link.setAttribute("download", "adaptation_admins.csv");
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="px-4 py-2.5 border border-neutral-200 hover:bg-neutral-100 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-xs">download</span>
+                          <span>Export CSV</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto w-full border border-neutral-100 rounded-xl mt-2">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-neutral-50 text-[10px] font-bold text-[#5d5e64] uppercase tracking-wider border-b border-neutral-100">
+                            <th className="py-4 px-4 sm:px-6">Admin User</th>
+                            <th className="py-4 px-4 sm:px-6">Email Address</th>
+                            <th className="py-4 px-4 sm:px-6">Access Level</th>
+                            <th className="py-4 px-4 sm:px-6">Last Active</th>
+                            <th className="py-4 px-4 sm:px-6 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 text-xs">
+                          {admins.filter(a => {
+                            const query = adminSearch.toLowerCase().trim();
+                            return a.name.toLowerCase().includes(query) || a.email.toLowerCase().includes(query);
+                          }).length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="py-8 text-center text-neutral-400 font-medium">
+                                No administrators match your search filter criteria.
+                              </td>
+                            </tr>
+                          ) : (
+                            admins.filter(a => {
+                              const query = adminSearch.toLowerCase().trim();
+                              return a.name.toLowerCase().includes(query) || a.email.toLowerCase().includes(query);
+                            }).map((admin) => (
+                              <tr key={admin.id} className="hover:bg-neutral-50/30 transition-colors">
+                                <td className="py-4 px-4 sm:px-6">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center font-bold text-neutral-600 text-[10px] border border-neutral-200">
+                                      {admin.initials || "AD"}
+                                    </div>
+                                    <span className="font-semibold text-[#1a1c1d]">{admin.name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 px-4 sm:px-6 font-mono text-neutral-500">{admin.email}</td>
+                                <td className="py-4 px-4 sm:px-6">
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
+                                    admin.role === 'Super Admin' 
+                                      ? 'bg-neutral-900 text-white' 
+                                      : 'bg-neutral-100 text-neutral-800 border border-neutral-200/50'
+                                  }`}>
+                                    {admin.role}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-4 sm:px-6 text-neutral-500">{admin.lastActive || "Active Now"}</td>
+                                <td className="py-4 px-4 sm:px-6 text-right">
+                                  <button
+                                    onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                                    className="p-1.5 text-neutral-400 hover:text-[#ba1a1a] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Revoke Admin Access"
+                                    disabled={admins.length <= 1 && admin.role === 'Super Admin'}
+                                  >
+                                    <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </section>
 
@@ -1513,7 +2401,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         )}
       </AnimatePresence>
 
-      {/* Interactive overlay dialog to Create a Live Slip Activity */}
+      {/* Interactive overlay dialog to Upload a New Betting Slip */}
       <AnimatePresence>
         {isNewSlipModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1528,61 +2416,116 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-8 max-w-[480px] w-full relative z-10 shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-8 max-w-[500px] w-full relative z-10 shadow-2xl flex flex-col gap-5 max-h-[95vh] overflow-y-auto"
             >
               <div>
-                <h3 className="font-display text-lg sm:text-xl font-extrabold text-[#1a1c1d] tracking-tight">Create Live Activity Log</h3>
-                <p className="text-xs text-[#5d5e64] mt-1">Populate a live event notification directly onto the system feed.</p>
+                <h3 className="font-display text-lg sm:text-xl font-extrabold text-[#1a1c1d] tracking-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 rounded-xl text-lg font-bold">cloud_upload</span>
+                  Upload New Betting Slip
+                </h3>
+                <p className="text-xs text-[#5d5e64] mt-1">Submit high-probability forecast configurations into the public directory.</p>
               </div>
 
-              <form onSubmit={handleCreateActivity} className="flex flex-col gap-4">
+              <form onSubmit={handleModalUploadSlip} className="flex flex-col gap-4">
+                {/* Matches Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Activity Description</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newSlipTitle}
-                    onChange={(e) => setNewSlipTitle(e.target.value)}
-                    placeholder="e.g. World Cup Qualifier Parlay (#WC-9821)"
+                  <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Number of Matches</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newSlipMatches}
+                    onChange={(e) => setNewSlipMatches(e.target.value ? Number(e.target.value) : "")}
+                    placeholder="e.g. 10"
                     className="bg-neutral-100 border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
                   />
                 </div>
 
+                {/* Category & Odds Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Category</label>
                     <select 
                       value={newSlipCategory} 
                       onChange={(e) => setNewSlipCategory(e.target.value)}
-                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none"
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none cursor-pointer"
                     >
-                      <option value="World Cup">World Cup</option>
-                      <option value="Bet Builder">Bet Builder</option>
-                      <option value="Elite Pick">Elite Pick</option>
-                      <option value="Weekend Special">Weekend Special</option>
-                      <option value="System Notification">System</option>
+                      {slipCategories.map((cat) => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Severity/Status</label>
-                    <select 
-                      value={newSlipStatus} 
-                      onChange={(e) => setNewSlipStatus(e.target.value as any)}
-                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none"
-                    >
-                      <option value="success">Success (Published)</option>
-                      <option value="neutral">Neutral (Odds Shift)</option>
-                      <option value="priority">Priority Badge</option>
-                      <option value="error">Action Required (Alert)</option>
-                    </select>
+                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Total Odds</label>
+                    <input 
+                      type="text"
+                      required
+                      value={newSlipOdds}
+                      onChange={(e) => setNewSlipOdds(e.target.value)}
+                      placeholder="e.g. 12.40"
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                    />
                   </div>
                 </div>
 
+                {/* Booking Code */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Booking Code</label>
+                  <input 
+                    type="text"
+                    required
+                    value={newSlipBookingCode}
+                    onChange={(e) => setNewSlipBookingCode(e.target.value)}
+                    placeholder="e.g. AF-WOR-1240"
+                    className="bg-neutral-100 border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                  />
+                </div>
+
+                {/* Live Ticket Preview */}
+                <div className="relative overflow-hidden bg-neutral-900 border border-neutral-850 rounded-2xl p-4 text-white shadow-md flex flex-col gap-3 mt-1">
+                  <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-[#f3c623]"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-[8px] bg-neutral-800 text-[#f3c623] px-2 py-0.5 rounded uppercase tracking-widest font-bold">MODAL PREVIEW</span>
+                    <span className="material-symbols-outlined text-neutral-400 text-sm">visibility</span>
+                  </div>
+                  <div>
+                    <h4 className="font-display text-[10px] font-black uppercase tracking-widest text-neutral-400">High-Octane Accumulator</h4>
+                    <h3 className="font-display text-sm font-black text-white mt-0.5 uppercase">
+                      {newSlipCategory || "Select Category"}
+                    </h3>
+                  </div>
+                  <div className="h-[1px] bg-neutral-800"></div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider font-sans">MATCHES</span>
+                      <span className="text-base font-black text-white">{newSlipMatches || "--"}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider font-sans">TOTAL ODDS</span>
+                      <span className="text-base font-black text-[#f3c623]">{newSlipOdds || "--"}</span>
+                    </div>
+                  </div>
+                  {newSlipBookingCode && (
+                    <div className="bg-neutral-800 rounded-xl px-3 py-2 flex justify-between items-center border border-neutral-700/50">
+                      <span className="text-[9px] font-mono text-white/90 tracking-wider font-bold">{newSlipBookingCode}</span>
+                      <span className="material-symbols-outlined text-neutral-400 text-xs">content_copy</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Cancel & Submit Actions */}
                 <div className="flex gap-3 pt-2">
                   <button 
                     type="button" 
-                    onClick={() => setIsNewSlipModalOpen(false)}
+                    onClick={() => {
+                      setNewSlipMatches("");
+                      setNewSlipOdds("");
+                      setNewSlipBookingCode("");
+                      setIsNewSlipModalOpen(false);
+                    }}
                     className="flex-1 bg-neutral-100 hover:bg-neutral-200/80 text-[#5d5e64] font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer transition-all"
                   >
                     Cancel
@@ -1591,7 +2534,127 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     type="submit" 
                     className="flex-1 bg-[#f3c623] text-black hover:brightness-95 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer transition-all shadow-sm"
                   >
-                    Publish Log
+                    Publish Ticket
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Interactive overlay dialog to Edit a Slip */}
+      <AnimatePresence>
+        {isEditSlipModalOpen && editingSlip && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsEditSlipModalOpen(false);
+                setEditingSlip(null);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-8 max-w-[480px] w-full relative z-10 shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div>
+                <h3 className="font-display text-lg sm:text-xl font-extrabold text-[#1a1c1d] tracking-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 rounded-xl text-lg font-bold">edit_note</span>
+                  Edit Betting Slip
+                </h3>
+                <p className="text-xs text-[#5d5e64] mt-1">Modify properties for slip code <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-1 py-0.5 rounded">{editingSlip.bookingCode}</span></p>
+              </div>
+
+              <form onSubmit={handleSaveEditSlip} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Booking Code</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editSlipBookingCode}
+                    onChange={(e) => setEditSlipBookingCode(e.target.value)}
+                    placeholder="e.g. AF-WOR-1240"
+                    className="bg-neutral-100 border border-neutral-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Category</label>
+                    <select 
+                      value={editSlipCategory} 
+                      onChange={(e) => setEditSlipCategory(e.target.value)}
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none"
+                    >
+                      {slipCategories.map((cat) => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Matches</label>
+                    <input 
+                      type="number"
+                      min="1"
+                      required
+                      value={editSlipMatches}
+                      onChange={(e) => setEditSlipMatches(e.target.value ? Number(e.target.value) : "")}
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Total Odds</label>
+                    <input 
+                      type="text"
+                      required
+                      value={editSlipOdds}
+                      onChange={(e) => setEditSlipOdds(e.target.value)}
+                      placeholder="e.g. 12.40"
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wide">Uploaded Date</label>
+                    <input 
+                      type="text"
+                      required
+                      value={editSlipDateUploaded}
+                      onChange={(e) => setEditSlipDateUploaded(e.target.value)}
+                      placeholder="e.g. Jun 30, 2026"
+                      className="bg-neutral-100 border border-neutral-200 rounded-xl px-3.5 py-3 text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#f3c623]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsEditSlipModalOpen(false);
+                      setEditingSlip(null);
+                    }}
+                    className="flex-1 bg-neutral-100 hover:bg-neutral-200/80 text-[#5d5e64] font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-1 bg-[#f3c623] text-black hover:brightness-95 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </form>

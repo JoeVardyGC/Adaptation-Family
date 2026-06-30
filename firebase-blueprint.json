@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "slip": {
+      "title": "Slip",
+      "description": "A betting prediction slip document",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "matches": { "type": "string" },
+        "odds": { "type": "string" },
+        "bookingCode": { "type": "string" },
+        "dateUploaded": { "type": "string" }
+      },
+      "required": ["category", "matches", "odds", "bookingCode", "dateUploaded"]
+    },
+    "category": {
+      "title": "Category",
+      "description": "A booking code category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["name", "icon", "status"]
+    },
+    "team_member": {
+      "title": "Team Member",
+      "description": "A public team member or expert tipster",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "image": { "type": "string" }
+      },
+      "required": ["name", "role", "image"]
+    },
+    "payment_settings": {
+      "title": "Payment Settings",
+      "description": "Global mobile money and bank details",
+      "type": "object",
+      "properties": {
+        "momoAccountName": { "type": "string" },
+        "momoNumber": { "type": "string" },
+        "momoReference": { "type": "string" },
+        "bankName": { "type": "string" },
+        "bankAccountNumber": { "type": "string" },
+        "bankAccountHolder": { "type": "string" },
+        "bankBranch": { "type": "string" }
+      },
+      "required": ["momoAccountName", "momoNumber", "momoReference", "bankName", "bankAccountNumber", "bankAccountHolder", "bankBranch"]
+    },
+    "admin": {
+      "title": "Admin",
+      "description": "Authorized administrator user profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "lastActive": { "type": "string" },
+        "initials": { "type": "string" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "security_log": {
+      "title": "Security Log",
+      "description": "An administrative security log entry",
+      "type": "object",
+      "properties": {
+        "time": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string" }
+      },
+      "required": ["time", "text", "type"]
+    }
+  },
+  "firestore": {
+    "slips": {
+      "schema": "slip",
+      "description": "Collection of all sports prediction slips"
+    },
+    "categories": {
+      "schema": "category",
+      "description": "Collection of all slip categories"
+    },
+    "team_members": {
+      "schema": "team_member",
+      "description": "Collection of team experts"
+    },
+    "payment_settings": {
+      "schema": "payment_settings",
+      "description": "Singleton configuration for payment information"
+    },
+    "admins": {
+      "schema": "admin",
+      "description": "Collection of administrators"
+    },
+    "security_logs": {
+      "schema": "security_log",
+      "description": "Recent security and access log trails"
+    }
+  }
+}

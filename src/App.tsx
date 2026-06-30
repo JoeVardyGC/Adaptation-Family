@@ -5,6 +5,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db, auth } from './firebase';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import AdminLogin from './components/AdminLogin';
@@ -25,92 +27,7 @@ interface Category {
   tickets: Ticket[];
 }
 
-const CATEGORIES: Category[] = [
-  {
-    name: "World Cup",
-    icon: "public",
-    matches: "9 Matches",
-    tickets: [
-      { id: "wc-1", category: "World Cup", matches: "9 Matches", odds: "12.40" },
-      { id: "wc-2", category: "World Cup", matches: "9 Matches", odds: "13.40" },
-      { id: "wc-3", category: "World Cup", matches: "9 Matches", odds: "14.40" },
-      { id: "wc-4", category: "World Cup", matches: "9 Matches", odds: "15.40" },
-      { id: "wc-5", category: "World Cup", matches: "9 Matches", odds: "16.40" },
-    ]
-  },
-  {
-    name: "Bet Builder",
-    icon: "construction",
-    matches: "5 Matches",
-    tickets: [
-      { id: "bb-1", category: "Bet Builder", matches: "5 Matches", odds: "8.00" },
-      { id: "bb-2", category: "Bet Builder", matches: "5 Matches", odds: "8.10" },
-      { id: "bb-3", category: "Bet Builder", matches: "5 Matches", odds: "8.20" },
-      { id: "bb-4", category: "Bet Builder", matches: "5 Matches", odds: "8.30" },
-      { id: "bb-5", category: "Bet Builder", matches: "5 Matches", odds: "8.40" },
-    ]
-  },
-  {
-    name: "Roll Over",
-    icon: "loop",
-    matches: "2 Matches",
-    tickets: [
-      { id: "ro-1", category: "Roll Over", matches: "2 Matches", odds: "1.80" },
-      { id: "ro-2", category: "Roll Over", matches: "2 Matches", odds: "1.81" },
-      { id: "ro-3", category: "Roll Over", matches: "2 Matches", odds: "1.82" },
-      { id: "ro-4", category: "Roll Over", matches: "2 Matches", odds: "1.83" },
-      { id: "ro-5", category: "Roll Over", matches: "2 Matches", odds: "1.84" },
-    ]
-  },
-  {
-    name: "1 Cedi and a Dream",
-    icon: "diamond",
-    matches: "25 Matches",
-    tickets: [
-      { id: "cd-1", category: "1 Cedi", matches: "25 Matches", odds: "950.00", isHighOdds: true },
-      { id: "cd-2", category: "1 Cedi", matches: "25 Matches", odds: "951.00", isHighOdds: true },
-      { id: "cd-3", category: "1 Cedi", matches: "25 Matches", odds: "952.00", isHighOdds: true },
-      { id: "cd-4", category: "1 Cedi", matches: "25 Matches", odds: "953.00", isHighOdds: true },
-      { id: "cd-5", category: "1 Cedi", matches: "25 Matches", odds: "954.00", isHighOdds: true },
-    ]
-  },
-  {
-    name: "Beticology",
-    icon: "science",
-    matches: "4 Matches",
-    tickets: [
-      { id: "bet-1", category: "Beticology", matches: "4 Matches", odds: "5.05" },
-      { id: "bet-2", category: "Beticology", matches: "4 Matches", odds: "5.15" },
-      { id: "bet-3", category: "Beticology", matches: "4 Matches", odds: "5.25" },
-      { id: "bet-4", category: "Beticology", matches: "4 Matches", odds: "5.35" },
-      { id: "bet-5", category: "Beticology", matches: "4 Matches", odds: "5.45" },
-    ]
-  },
-  {
-    name: "General / Long Bets",
-    icon: "trending_up",
-    matches: "12 Matches",
-    tickets: [
-      { id: "lb-1", category: "Long Bets", matches: "12 Matches", odds: "20.50" },
-      { id: "lb-2", category: "Long Bets", matches: "12 Matches", odds: "21.50" },
-      { id: "lb-3", category: "Long Bets", matches: "12 Matches", odds: "22.50" },
-      { id: "lb-4", category: "Long Bets", matches: "12 Matches", odds: "23.50" },
-      { id: "lb-5", category: "Long Bets", matches: "12 Matches", odds: "24.50" },
-    ]
-  },
-  {
-    name: "Engine Room",
-    icon: "settings",
-    matches: "3 Matches",
-    tickets: [
-      { id: "er-1", category: "Engine Room", matches: "3 Matches", odds: "3.05" },
-      { id: "er-2", category: "Engine Room", matches: "3 Matches", odds: "3.15" },
-      { id: "er-3", category: "Engine Room", matches: "3 Matches", odds: "3.25" },
-      { id: "er-4", category: "Engine Room", matches: "3 Matches", odds: "3.35" },
-      { id: "er-5", category: "Engine Room", matches: "3 Matches", odds: "3.45" },
-    ]
-  },
-];
+// Dynamic categories will be declared inside the App component to stay synchronized with localStorage and Admin Dashboard.
 
 const EXPERTS = [
   {
@@ -194,9 +111,32 @@ export default function App() {
   const [bankBranch, setBankBranch] = useState(() => localStorage.getItem("bank_branch") || "Accra Mall Branch");
 
   const [publicTeamMembers, setPublicTeamMembers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [slips, setSlips] = useState<any[]>([]);
+
+  // Compute dynamic CATEGORIES structure to match original template expectation and adapt to live changes
+  const CATEGORIES: Category[] = categories.map(cat => {
+    const ticketsForCat = slips
+      .filter(s => s.category === cat.name)
+      .map(s => ({
+        id: s.id,
+        category: s.category,
+        matches: typeof s.matches === 'number' ? `${s.matches} Matches` : s.matches,
+        odds: s.odds,
+        bookingCode: s.bookingCode || `AF-${cat.name.substring(0,3).toUpperCase()}-${s.odds.replace('.', '')}`,
+        isHighOdds: parseFloat(s.odds) >= 100
+      }));
+    return {
+      name: cat.name,
+      icon: cat.icon || "receipt_long",
+      matches: ticketsForCat.length > 0 ? ticketsForCat[0].matches : "0 Matches",
+      tickets: ticketsForCat,
+      status: cat.status || "Active"
+    };
+  }).filter(cat => cat.status === "Active");
 
   useEffect(() => {
-    // Reload payment settings from local storage whenever view changes
+    // 1. Instantly load offline/local storage fallbacks for immediate responsiveness
     setMomoAccountName(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
     setMomoNumber(localStorage.getItem("momo_number") || "055 776 5432");
     setMomoReference(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
@@ -205,58 +145,111 @@ export default function App() {
     setBankAccountHolder(localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
     setBankBranch(localStorage.getItem("bank_branch") || "Accra Mall Branch");
 
-    // Load team members from local storage
-    const saved = localStorage.getItem("adaptation_team_members");
-    if (saved) {
-      try {
-        setPublicTeamMembers(JSON.parse(saved));
-        return;
-      } catch (e) {}
+    const localCats = localStorage.getItem("adaptation_slip_categories");
+    if (localCats) {
+      try { setCategories(JSON.parse(localCats)); } catch (e) {}
+    } else {
+      const defaultCats = [
+        { id: "1", name: "World Cup", icon: "sports_soccer", status: "Active" },
+        { id: "2", name: "Bet Builder", icon: "construction", status: "Active" },
+        { id: "3", name: "Roll Over", icon: "cached", status: "Active" },
+        { id: "4", name: "1 Cedi and a Dream", icon: "payments", status: "Active" },
+        { id: "5", name: "Beticology", icon: "psychology", status: "Active" },
+        { id: "6", name: "General / Long Bets", icon: "hourglass_empty", status: "Active" },
+        { id: "7", name: "Engine Room", icon: "settings", status: "Active" }
+      ];
+      setCategories(defaultCats);
+      localStorage.setItem("adaptation_slip_categories", JSON.stringify(defaultCats));
     }
-    setPublicTeamMembers([
-      {
-        id: "1",
-        name: "Alex Rivera",
-        role: "Head Strategist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCmiZUJxcfA2HLcC3ksPOmZ9iFilcu9VxwM1cEZQ0dDxRaMc9wh2q2HXOYnGMZUnKxIIMsgZwWxLuTSTbZU9663BX7vzGD0qa4CBV4oeNR-Q-QyjXLVvnUwzCa3CE13tYbIjRaHWMgyZPbIuo9VC2ipzI3jo8acV4pt47p8zoE4BOfn2fHL5CTVtT0yQlB7ihuN6w5QDziNla4OLDwud_8PPNUYhG7S7tHZoKlnwtfLxn13-CAKb6RUaaZfii5cER2IlC97pGzR2Q"
-      },
-      {
-        id: "2",
-        name: "Sarah Chen",
-        role: "Betting Analyst",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDCyYp7hzyLNJ48AOfaeEBhlHcqZ67PjXLmLQtiNv69fvyB7ovUvq7wfgIctAQpDgp5os_G7ahOPk-nRwMwN0_b-kmleasMXVxcLrXwZWriqmea3bRcJ9DHmKkEznGZd9gG4hFvx9KvMNGklh1sw5KtuEHyg_5-pGtoZVXmUTivK15iEsltP6pkphhR9AFw8P6sSE5ShXhypOiSINjJN7JtxiunqhNQ6ptWAedCeKsVBu3f3xp43-CkhLtf4mhMhCBtZJ8QtDQiLQ"
-      },
-      {
-        id: "3",
-        name: "Marcus Kalu",
-        role: "Data Scientist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAh3Q6DdsxRqWFOLxx1Fze_ytBJKqTytUQS_qPMMB1dYsrP3-iowSYZyaNNS_quFqr_FGvFSJavftj1GnqTpNdgWdrX3qeTeJccOcawp6NyHD0X-srkvYq0qdZxnXZArJiavY8dYqc-G06vzR1JrHwWbvG3K6jlaGPxORdAbbq7Su8LzLgykt6za1KWOqAFnvtEhvgJssPlXahLd8YDACjV6gaV5iZk46aPea5Xn2sWwaa4KCBpwlAelkiPCHAMGFdl11MB97WGVw"
-      },
-      {
-        id: "4",
-        name: "Elena Rodriguez",
-        role: "Community Lead",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuALUubqUDswtVcW0pIMU3998mBvcMGMEYFv8-le3Zeu7VlJWhS1_JHQGyQw60ZRa2tGgQrZHv6iIJs2B00cuXYJgjnliApeCi2Wozx9-xqK2ANUifb-2bxhd4QkU9rNgVTy_erySNIVdUPOUp8uv_C7oXzHRMYnAvO8jrIpO_5MoV8Bez1C0r_csoOheCpKzExcyTNW9RovImIga-CmYB0RvkTHRuD5EwLdiDZ-L4KMNzSxElK6r2KAajylJBZE5RravTyuhYFTVQ"
-      },
-      {
-        id: "5",
-        name: "James Wilson",
-        role: "Support Specialist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDPS4A9qxg2bJPQpUJKyzLON43UgwP-T5g5XLpWNrC3z846DT9sOia8oqLajZ7_OUd3l4e_gS8lo8031L9KmSRBtKMOPEaekKy2AnlIKtMYFUSr6sLpYEAXUKNtZQpG8jfij94P_cQkwBplHGvAqfyr-yeCJIo49a93kTmYaUZr0Q9O7Mp0x2W5UGMrAJILzXShzsEhWw8IJcyn9yaQpcF_IK7_9i783fRhenn7DlQMHd9AFNLO9zwHSlQGTPYR5SlXOy8M6Wli4A"
-      },
-      {
-        id: "6",
-        name: "Sophie Laurent",
-        role: "Operations Manager",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAC1G7CxYxMK9Hq0nijASDWKWpjbQASp-jyzcvGp1_eE3nY-yF15Y3IswVW_PvGJwWuoRhWD8Pdv-vFvb09xrDvYiraLx8kLhhKfih8-o-0GXbnLgxF5riE-eIumDQGXwPOUYY42taaz3feG3HRTT-2uxtPzxvHpO8Es-6opQe0qyHYiYTDIC5LnU5nkNQ0OMFa77jqKJt2nqJGLkM7mM8UN1duaHDppDII5Sa_VHoYRKSDp9jqjiHZfUAKeajbgnxEHDRgZKFV7w"
-      },
-      {
-        id: "7",
-        name: "David Okafor",
-        role: "Technical Advisor",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBmMSbnRs98QVjlCvGPlgUkVxxLohGxGsMvZji1zto5CPTwl4A_GvCyVb7WGF3r-R02C7vzVi4QQgdGTaI90qfJvzP5G0ry3C_jYUAGcZbg1ytLM13H22jhWhDx1gjIONmAuHPpWhhTjUPq9aj9ARD2GxIVDpSy88bFlJ8xVBsjnlYTnd-c1drKuQbwqbz6MR3Ge-Ci7gUO5rhuJ9SQkVRLos1TqLXTy_dfKU_sSLTpaffWKEhoWEf6ZBCX9R_IlsoZO4bET14IvA"
+
+    const localSlips = localStorage.getItem("adaptation_slips_list");
+    if (localSlips) {
+      try { setSlips(JSON.parse(localSlips)); } catch (e) {}
+    } else {
+      const defaultSlips = [
+        { id: "wc-1", category: "World Cup", matches: "9 Matches", odds: "12.40", bookingCode: "AF-WOR-1240", dateUploaded: "Jun 30, 2026" },
+        { id: "wc-2", category: "World Cup", matches: "9 Matches", odds: "13.40", bookingCode: "AF-WOR-1340", dateUploaded: "Jun 30, 2026" },
+        { id: "wc-3", category: "World Cup", matches: "9 Matches", odds: "14.40", bookingCode: "AF-WOR-1440", dateUploaded: "Jun 30, 2026" },
+        { id: "wc-4", category: "World Cup", matches: "9 Matches", odds: "15.40", bookingCode: "AF-WOR-1540", dateUploaded: "Jun 30, 2026" },
+        { id: "wc-5", category: "World Cup", matches: "9 Matches", odds: "16.40", bookingCode: "AF-WOR-1640", dateUploaded: "Jun 30, 2026" }
+      ];
+      setSlips(defaultSlips);
+      localStorage.setItem("adaptation_slips_list", JSON.stringify(defaultSlips));
+    }
+
+    const localTeam = localStorage.getItem("adaptation_team_members");
+    if (localTeam) {
+      try { setPublicTeamMembers(JSON.parse(localTeam)); } catch (e) {}
+    } else {
+      const defaultTeam = [
+        { id: "1", name: "Alex Rivera", role: "Head Strategist", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCmiZUJxcfA2HLcC3ksPOmZ9iFilcu9VxwM1cEZQ0dDxRaMc9wh2q2HXOYnGMZUnKxIIMsgZwWxLuTSTbZU9663BX7vzGD0qa4CBV4oeNR-Q-QyjXLVvnUwzCa3CE13tYbIjRaHWMgyZPbIuo9VC2ipzI3jo8acV4pt47p8zoE4BOfn2fHL5CTVtT0yQlB7ihuN6w5QDziNla4OLDwud_8PPNUYhG7S7tHZoKlnwtfLxn13-CAKb6RUaaZfii5cER2IlC97pGzR2Q" },
+        { id: "2", name: "Sarah Chen", role: "Betting Analyst", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDCyYp7hzyLNJ48AOfaeEBhlHcqZ67PjXLmLQtiNv69fvyB7ovUvq7wfgIctAQpDgp5os_G7ahOPk-nRwMwN0_b-kmleasMXVxcLrXwZWriqmea3bRcJ9DHmKkEznGZd9gG4hFvx9KvMNGklh1sw5KtuEHyg_5-pGtoZVXmUTivK15iEsltP6pkphhR9AFw8P6sSE5ShXhypOiSINjJN7JtxiunqhNQ6ptWAedCeKsVBu3f3xp43-CkhLtf4mhMhCBtZJ8QtDQiLQ" }
+      ];
+      setPublicTeamMembers(defaultTeam);
+      localStorage.setItem("adaptation_team_members", JSON.stringify(defaultTeam));
+    }
+
+    // 2. Setup real-time listeners to Firestore for live data synchronization
+    const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setCategories(list);
+        localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
       }
-    ]);
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubSlips = onSnapshot(collection(db, "slips"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setSlips(list);
+        localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
+      }
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
+      if (!snapshot.empty) {
+        const list: any[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() });
+        });
+        setPublicTeamMembers(list);
+        localStorage.setItem("adaptation_team_members", JSON.stringify(list));
+      }
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubPayments = onSnapshot(doc(db, "payment_settings", "global"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMomoAccountName(data.momoAccountName || "ADAPTATION FAMILY");
+        setMomoNumber(data.momoNumber || "055 776 5432");
+        setMomoReference(data.momoReference || "ADAPT FAMILY");
+        setBankName(data.bankName || "Ecobank Ghana");
+        setBankAccountNumber(data.bankAccountNumber || "1441002345678");
+        setBankAccountHolder(data.bankAccountHolder || "ADAPTATION FAMILY");
+        setBankBranch(data.bankBranch || "Accra Mall Branch");
+        
+        localStorage.setItem("momo_account_name", data.momoAccountName || "ADAPTATION FAMILY");
+        localStorage.setItem("momo_number", data.momoNumber || "055 776 5432");
+        localStorage.setItem("momo_reference", data.momoReference || "ADAPT FAMILY");
+        localStorage.setItem("bank_name", data.bankName || "Ecobank Ghana");
+        localStorage.setItem("bank_account_number", data.bankAccountNumber || "1441002345678");
+        localStorage.setItem("bank_account_holder", data.bankAccountHolder || "ADAPTATION FAMILY");
+        localStorage.setItem("bank_branch", data.bankBranch || "Accra Mall Branch");
+      }
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    return () => {
+      unsubCats();
+      unsubSlips();
+      unsubTeam();
+      unsubPayments();
+    };
   }, [activeView]);
 
   const handleLogoClick = () => {
