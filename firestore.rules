@@ -21,14 +21,17 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (
+        request.auth.token.email == "abubakarsadikmusah2004@gmail.com" ||
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email)))
+      );
     }
 
     // Validation helper functions
     function isValidSlip(data) {
       return data.keys().hasAll(['category', 'matches', 'odds', 'bookingCode', 'dateUploaded'])
         && data.category is string && data.category.size() <= 100
-        && data.matches is string && data.matches.size() <= 100
+        && (data.matches is string || data.matches is int || data.matches is number)
         && data.odds is string && data.odds.size() <= 50
         && data.bookingCode is string && data.bookingCode.size() <= 100
         && data.dateUploaded is string && data.dateUploaded.size() <= 100;
@@ -75,15 +78,25 @@ service cloud.firestore {
         && data.type is string && data.type.size() <= 50;
     }
 
+    function isValidActivity(data) {
+      return data.keys().hasAll(['type', 'icon', 'title', 'time', 'author', 'tag'])
+        && data.type is string && data.type.size() <= 50
+        && data.icon is string && data.icon.size() <= 100
+        && data.title is string && data.title.size() <= 500
+        && data.time is string && data.time.size() <= 100
+        && data.author is string && data.author.size() <= 100
+        && data.tag is string && data.tag.size() <= 50;
+    }
+
     // --- Collections ---
 
     // Admins Collection
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() && isValidAdmin(incoming()) && (
-        isAdmin() || adminId == request.auth.uid
+        isAdmin() || adminId == request.auth.uid || adminId == request.auth.token.email || adminId == "super-admin"
       );
-      allow delete: if isAdmin() && adminId != request.auth.uid; // Prevent deleting oneself
+      allow delete: if isAdmin() && adminId != request.auth.uid && adminId != request.auth.token.email && adminId != "super-admin";
     }
 
     // Security Logs Collection
@@ -118,6 +131,13 @@ service cloud.firestore {
     match /payment_settings/{settingsId} {
       allow read: if true;
       allow create, update: if isAdmin() && isValidPaymentSettings(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Activities Collection
+    match /activities/{activityId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() && isValidActivity(incoming());
       allow delete: if isAdmin();
     }
   }

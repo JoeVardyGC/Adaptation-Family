@@ -420,6 +420,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
 
+  const parseMatchesValue = (val: any): number => {
+    if (typeof val === 'number') {
+      return isNaN(val) ? 0 : val;
+    }
+    if (!val) return 0;
+    const parsed = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const saveSlips = async (updated: any[]) => {
     setSlips(updated);
     localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
@@ -427,7 +436,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       for (const slip of updated) {
         await setDoc(doc(db, "slips", slip.id), {
           category: slip.category,
-          matches: String(slip.matches),
+          matches: parseMatchesValue(slip.matches),
           odds: slip.odds,
           bookingCode: slip.bookingCode || "",
           dateUploaded: slip.dateUploaded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -469,7 +478,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const updated = slips.map(s => s.id === editingSlip.id ? {
       ...s,
       category: editSlipCategory,
-      matches: Number(editSlipMatches),
+      matches: parseMatchesValue(editSlipMatches),
       odds: editSlipOdds,
       bookingCode: editSlipBookingCode,
       dateUploaded: editSlipDateUploaded
@@ -734,7 +743,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const newSlip = {
       id: Date.now().toString(),
       category: newSlipCategory,
-      matches: Number(newSlipMatches),
+      matches: parseMatchesValue(newSlipMatches),
       odds: newSlipOdds,
       bookingCode: newSlipBookingCode,
       dateUploaded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -1796,7 +1805,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         const newSlip = {
                           id: Date.now().toString(),
                           category: slipFormCategory,
-                          matches: Number(slipFormMatches),
+                          matches: parseMatchesValue(slipFormMatches),
                           odds: slipFormOdds,
                           bookingCode: slipFormBookingCode,
                           dateUploaded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })

@@ -118,14 +118,29 @@ export default function App() {
   const CATEGORIES: Category[] = categories.map(cat => {
     const ticketsForCat = slips
       .filter(s => s.category === cat.name)
-      .map(s => ({
-        id: s.id,
-        category: s.category,
-        matches: typeof s.matches === 'number' ? `${s.matches} Matches` : s.matches,
-        odds: s.odds,
-        bookingCode: s.bookingCode || `AF-${cat.name.substring(0,3).toUpperCase()}-${s.odds.replace('.', '')}`,
-        isHighOdds: parseFloat(s.odds) >= 100
-      }));
+      .map(s => {
+        const rawOdds = s.odds || "1.00";
+        const rawMatches = s.matches;
+        let formattedMatches = "0 Matches";
+        if (typeof rawMatches === 'number') {
+          formattedMatches = isNaN(rawMatches) ? "0 Matches" : `${rawMatches} Matches`;
+        } else if (typeof rawMatches === 'string') {
+          if (rawMatches.toLowerCase().includes("matches")) {
+            formattedMatches = rawMatches;
+          } else {
+            const parsed = parseInt(rawMatches.replace(/[^0-9]/g, ''), 10);
+            formattedMatches = isNaN(parsed) ? "0 Matches" : `${parsed} Matches`;
+          }
+        }
+        return {
+          id: s.id,
+          category: s.category,
+          matches: formattedMatches,
+          odds: rawOdds,
+          bookingCode: s.bookingCode || `AF-${cat.name.replace(/\s+/g, '').substring(0,3).toUpperCase()}-${rawOdds.replace('.', '')}`,
+          isHighOdds: parseFloat(rawOdds) >= 100
+        };
+      });
     return {
       name: cat.name,
       icon: cat.icon || "receipt_long",
@@ -752,7 +767,7 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 px-1 py-1">
-                      {category.tickets.map((ticket) => {
+                      {category.tickets.slice(0, 5).map((ticket) => {
                         const isCopied = !!copiedStates[ticket.id];
                         return (
                           <div 

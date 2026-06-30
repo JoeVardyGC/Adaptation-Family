@@ -73,6 +73,20 @@
         "type": { "type": "string" }
       },
       "required": ["time", "text", "type"]
+    },
+    "activity": {
+      "title": "Activity",
+      "description": "An administrative system activity log item",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "icon": { "type": "string" },
+        "title": { "type": "string" },
+        "time": { "type": "string" },
+        "author": { "type": "string" },
+        "tag": { "type": "string" }
+      },
+      "required": ["type", "icon", "title", "time", "author", "tag"]
     }
   },
   "firestore": {
@@ -99,6 +113,10 @@
     "security_logs": {
       "schema": "security_log",
       "description": "Recent security and access log trails"
+    },
+    "activities": {
+      "schema": "activity",
+      "description": "Interactive system activity logs collection"
     }
   }
 }
