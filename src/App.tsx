@@ -17,6 +17,7 @@ interface Ticket {
   category: string;
   matches: string;
   odds: string;
+  bookingCode: string;
   isHighOdds?: boolean;
 }
 
@@ -100,6 +101,7 @@ export default function App() {
   const [logoClickCount, setLogoClickCount] = useState(0);
 
   // Synchronized payment settings
+  const [momoProvider, setMomoProvider] = useState(() => localStorage.getItem("momo_provider") || "MTN");
   const [momoAccountName, setMomoAccountName] = useState(() => localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
   const [momoNumber, setMomoNumber] = useState(() => localStorage.getItem("momo_number") || "055 776 5432");
   const [momoReference, setMomoReference] = useState(() => localStorage.getItem("momo_reference") || "ADAPT FAMILY");
@@ -152,6 +154,7 @@ export default function App() {
 
   useEffect(() => {
     // 1. Instantly load offline/local storage fallbacks for immediate responsiveness
+    setMomoProvider(localStorage.getItem("momo_provider") || "MTN");
     setMomoAccountName(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
     setMomoNumber(localStorage.getItem("momo_number") || "055 776 5432");
     setMomoReference(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
@@ -206,41 +209,36 @@ export default function App() {
 
     // 2. Setup real-time listeners to Firestore for live data synchronization
     const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-        setCategories(list);
-        localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setCategories(list);
+      localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
     }, (err) => console.log("Firestore loaded offline/cached values", err));
 
     const unsubSlips = onSnapshot(collection(db, "slips"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-        setSlips(list);
-        localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setSlips(list);
+      localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
     }, (err) => console.log("Firestore loaded offline/cached values", err));
 
     const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-        setPublicTeamMembers(list);
-        localStorage.setItem("adaptation_team_members", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setPublicTeamMembers(list);
+      localStorage.setItem("adaptation_team_members", JSON.stringify(list));
     }, (err) => console.log("Firestore loaded offline/cached values", err));
 
     const unsubPayments = onSnapshot(doc(db, "payment_settings", "global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        setMomoProvider(data.momoProvider || "MTN");
         setMomoAccountName(data.momoAccountName || "ADAPTATION FAMILY");
         setMomoNumber(data.momoNumber || "055 776 5432");
         setMomoReference(data.momoReference || "ADAPT FAMILY");
@@ -249,6 +247,7 @@ export default function App() {
         setBankAccountHolder(data.bankAccountHolder || "ADAPTATION FAMILY");
         setBankBranch(data.bankBranch || "Accra Mall Branch");
         
+        localStorage.setItem("momo_provider", data.momoProvider || "MTN");
         localStorage.setItem("momo_account_name", data.momoAccountName || "ADAPTATION FAMILY");
         localStorage.setItem("momo_number", data.momoNumber || "055 776 5432");
         localStorage.setItem("momo_reference", data.momoReference || "ADAPT FAMILY");
@@ -317,8 +316,7 @@ export default function App() {
     return `AF-${cleanCategory}-${numericPart}`;
   };
 
-  const handleCopyCode = (id: string, category: string, odds: string) => {
-    const code = generateSlipCode(id, category, odds);
+  const handleCopyCode = (id: string, code: string) => {
     navigator.clipboard.writeText(code).then(() => {
       setCopiedStates((prev) => ({ ...prev, [id]: true }));
       setCopiedText(code);
@@ -785,7 +783,7 @@ export default function App() {
 
                             <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2 px-1 text-center select-all">
                               <span className="slip-code-text text-on-surface tracking-wider">
-                                {generateSlipCode(ticket.id, category.name, ticket.odds)}
+                                {ticket.bookingCode}
                               </span>
                             </div>
 
@@ -797,7 +795,7 @@ export default function App() {
                             </div>
 
                             <button 
-                              onClick={() => handleCopyCode(ticket.id, category.name, ticket.odds)}
+                              onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
                               className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
                                 isCopied 
                                   ? "bg-emerald-500 text-white hover:opacity-100" 
@@ -870,18 +868,22 @@ export default function App() {
 
                 {/* Custom structured grid based on the uploaded layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
-                  {EXPERTS.map((expert) => {
+                  {(publicTeamMembers && publicTeamMembers.length > 0 ? publicTeamMembers : EXPERTS).map((expert) => {
+                    const imageUrl = expert.image || expert.img;
                     return (
                       <div 
-                        key={expert.name} 
+                        key={expert.id || expert.name} 
                         className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
                       >
                         {/* Background Image */}
                         <img 
-                          src={expert.img} 
+                          src={imageUrl} 
                           alt={expert.name} 
                           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                          }}
                         />
                         
                         {/* Dark overlay gradient */}
@@ -1022,7 +1024,7 @@ export default function App() {
 
                                 <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2.5 px-1.5 text-center select-all">
                                   <span className="slip-code-text text-on-surface tracking-wider">
-                                    {generateSlipCode(ticket.id, category.name, ticket.odds)}
+                                    {ticket.bookingCode}
                                   </span>
                                 </div>
 
@@ -1034,7 +1036,7 @@ export default function App() {
                                 </div>
 
                                 <button 
-                                  onClick={() => handleCopyCode(ticket.id, category.name, ticket.odds)}
+                                  onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
                                   className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
                                     isCopied 
                                       ? "bg-emerald-500 text-white hover:opacity-100" 
@@ -1096,71 +1098,40 @@ export default function App() {
 
             {/* Team Grid */}
             <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {publicTeamMembers.length > 0 ? (
-                  <>
-                    {/* Lead Profile (Spans 2x2 on LG) */}
-                    {(() => {
-                      const lead = publicTeamMembers[0];
-                      return (
-                        <div className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col lg:col-span-2 lg:row-span-2 w-full">
-                          <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
-                            <img 
-                              alt={lead.name} 
-                              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
-                              src={lead.image}
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                          </div>
-                          <div className="p-6 md:p-8 flex-grow flex flex-col bg-surface-container-lowest relative">
-                            <div className="w-1.5 h-12 bg-primary-container absolute left-0 top-6 md:top-8"></div>
-                            <span className="inline-block bg-surface-container-low text-on-surface-variant text-xs font-bold px-3 py-1 rounded-full w-fit mb-3">
-                              {lead.role}
-                            </span>
-                            <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-on-surface mb-2">
-                              {lead.name}
-                            </h3>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Other team profiles */}
-                    {publicTeamMembers.slice(1).map((expert) => (
-                      <div 
-                        key={expert.id}
-                        className="group relative bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col w-full"
-                      >
-                        <div className="w-full relative aspect-square overflow-hidden bg-surface-container-low">
-                          <img 
-                            alt={expert.name}
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700" 
-                            src={expert.image}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
-                            }}
-                          />
-                        </div>
-                        <div className="p-5 flex-grow flex flex-col bg-surface-container-lowest relative">
-                          <div className="w-1.5 h-12 bg-primary-container absolute left-0 top-5"></div>
-                          <span className="inline-block bg-surface-container-low text-on-surface-variant text-[11px] font-bold px-3 py-1 rounded-full w-fit mb-3">
-                            {expert.role}
-                          </span>
-                          <h3 className="font-display text-lg sm:text-xl font-extrabold text-on-surface mb-2">
-                            {expert.name}
-                          </h3>
-                        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
+                {(publicTeamMembers && publicTeamMembers.length > 0 ? publicTeamMembers : EXPERTS).map((expert) => {
+                  const imageUrl = expert.image || expert.img;
+                  return (
+                    <div 
+                      key={expert.id || expert.name} 
+                      className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
+                    >
+                      {/* Background Image */}
+                      <img 
+                        src={imageUrl} 
+                        alt={expert.name} 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                        }}
+                      />
+                      
+                      {/* Dark overlay gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
+                      
+                      {/* Overlay content at bottom */}
+                      <div className="relative z-20 p-5 flex flex-col text-left">
+                        <h4 className="text-lg font-bold text-white leading-tight font-sans tracking-tight">
+                          {expert.name}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-neutral-300 font-light mt-0.5 opacity-90">
+                          {expert.role}
+                        </p>
                       </div>
-                    ))}
-                  </>
-                ) : (
-                  <p className="text-sm text-on-surface-variant text-center col-span-full">No team members defined yet.</p>
-                )}
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -1209,13 +1180,68 @@ export default function App() {
                 <div className="bg-surface-container-lowest border border-[#f3c623]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-[#f3c623] hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3c623]/10 rounded-full blur-2xl"></div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
-                      <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
+                        <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
+                      </div>
+                      <div>
+                        <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
+                        <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
-                      <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
+                    {/* Active Provider Logo & Badge Container (LARGE) */}
+                    <div className="shrink-0 flex self-start sm:self-center">
+                      {momoProvider === "MTN" && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-[#FFCC00]/15 border border-[#FFCC00]/40 rounded-2xl shadow-sm transition-all duration-300">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg" 
+                            alt="MTN Logo" 
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-[#8f7200] uppercase tracking-wider leading-none mb-1">Provider</span>
+                            <span className="text-sm font-black text-neutral-900 leading-none">MTN MoMo</span>
+                          </div>
+                        </div>
+                      )}
+                      {momoProvider === "Telecel" && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-[#E60000]/10 border border-[#E60000]/40 rounded-2xl shadow-sm transition-all duration-300">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg" 
+                            alt="Telecel Logo" 
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              // If jpg fails, fallback to the svg path
+                              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
+                            }}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-[#E60000] uppercase tracking-wider leading-none mb-1">Provider</span>
+                            <span className="text-sm font-black text-[#E60000] leading-none">Telecel Cash</span>
+                          </div>
+                        </div>
+                      )}
+                      {momoProvider === "AirtelTigo" && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-[#0056B3]/10 border border-[#0056B3]/40 rounded-2xl shadow-sm transition-all duration-300">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png" 
+                            alt="AirtelTigo Logo" 
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              // If main commons path fails, fallback to English Wikipedia fair use path
+                              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
+                            }}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-[#0056B3] uppercase tracking-wider leading-none mb-1">Provider</span>
+                            <span className="text-sm font-black text-[#0056B3] leading-none">AirtelTigo</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1245,9 +1271,9 @@ export default function App() {
 
                     {/* Mobile Money Number */}
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">MoMo Number</span>
+                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">{momoProvider} Mobile Number</span>
                       <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{momoNumber}</span>
+                        <span className="text-lg sm:text-xl font-bold text-on-surface tracking-tight whitespace-nowrap" style={{ fontFamily: '"Montserrat", sans-serif' }}>{momoNumber}</span>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(momoNumber.replace(/\s+/g, ''));

@@ -71,6 +71,13 @@ export default function AdminLogin({ onBackToHome, onNavigateToPrivacy, onNaviga
     setErrorMsg(null);
     const cleanEmail = email.toLowerCase().trim();
 
+    // Enforce Google Sign-In for super admin to prevent bypass loophole
+    if (cleanEmail === "abubakarsadikmusah2004@gmail.com") {
+      setIsLoading(false);
+      setErrorMsg("Error: This account is configured to use Google Sign-In only. Please click the 'Sign in with Google' button below to log in.");
+      return;
+    }
+
     try {
       // 1. Validate if the email has admin rights first
       const hasAccess = await verifyAdminAccess(cleanEmail);
@@ -80,27 +87,14 @@ export default function AdminLogin({ onBackToHome, onNavigateToPrivacy, onNaviga
         return;
       }
 
-      // 2. Clear-text/sandbox override for the super admin (so they don't get locked out if their password is not configured yet)
-      if (cleanEmail === "abubakarsadikmusah2004@gmail.com" && (password === "admin123" || password === "••••••••")) {
-        setIsLoading(false);
-        onLoginSuccess();
-        return;
-      }
-
-      // 3. Attempt real Firebase Email/Password Sign-In
+      // 2. Attempt real Firebase Email/Password Sign-In
       await signInWithEmailAndPassword(auth, email, password);
       setIsLoading(false);
       onLoginSuccess();
     } catch (err: any) {
-      console.warn("Firebase Auth error, checking super-admin override: ", err.message);
-      // Graceful override for the super admin if authentication is not configured yet or in sandbox environment
-      if (cleanEmail === "abubakarsadikmusah2004@gmail.com") {
-        setIsLoading(false);
-        onLoginSuccess();
-      } else {
-        setIsLoading(false);
-        setErrorMsg(err.message || "Invalid credentials. Please verify your email and password.");
-      }
+      console.warn("Firebase Auth error: ", err.message);
+      setIsLoading(false);
+      setErrorMsg("Incorrect email or password. Please verify your credentials or use 'Sign in with Google' if applicable.");
     }
   };
 

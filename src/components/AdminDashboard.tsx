@@ -120,6 +120,18 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
 
+  const handleClearLogs = async () => {
+    for (const log of securityLogs) {
+      try {
+        await deleteDoc(doc(db, "security_logs", log.id));
+      } catch (e) {
+        console.warn("Firestore delete log failed: ", e);
+      }
+    }
+    setSecurityLogs([]);
+    localStorage.setItem("adaptation_security_logs", JSON.stringify([]));
+  };
+
   const saveActivities = async (updated: ActivityItem[]) => {
     setActivities(updated);
     localStorage.setItem("adaptation_activities_list", JSON.stringify(updated));
@@ -308,7 +320,54 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   });
 
   const [categoryFormName, setCategoryFormName] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<string>("All");
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
+
+  // Custom alert and confirmation modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: "success" | "error" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      confirmText,
+      cancelText
+    });
+  };
+
+  const showAlert = (title: string, message: string, type: "success" | "error" | "info" = "success") => {
+    setAlertModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
 
   // Upload Slip Form States
   const [slipFormMatches, setSlipFormMatches] = useState<number | "">("");
@@ -317,75 +376,91 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [slipFormBookingCode, setSlipFormBookingCode] = useState("");
 
   useEffect(() => {
+    // Record login event in security logs (once per session)
+    if (auth.currentUser && !sessionStorage.getItem("adaptation_logged_login")) {
+      const email = auth.currentUser.email || "abubakarsadikmusah2004@gmail.com";
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const logId = "login-" + Date.now();
+      
+      sessionStorage.setItem("adaptation_logged_login", "true");
+      setDoc(doc(db, "security_logs", logId), {
+        id: logId,
+        time: timeStr,
+        text: `Admin logged in: ${email} at ${timeStr} on ${dateStr}`,
+        type: "invite"
+      }).catch(err => console.error("Error creating login log:", err));
+    }
+
     const unsubAdmins = onSnapshot(collection(db, "admins"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setAdmins(list);
-        localStorage.setItem("adaptation_admins_list", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setAdmins(list);
+      localStorage.setItem("adaptation_admins_list", JSON.stringify(list));
     }, (err) => console.log("Admins database offline or not configured yet.", err));
 
     const unsubLogs = onSnapshot(collection(db, "security_logs"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setSecurityLogs(list);
-        localStorage.setItem("adaptation_security_logs", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setSecurityLogs(list);
+      localStorage.setItem("adaptation_security_logs", JSON.stringify(list));
     }, (err) => console.log("Security logs database offline or not configured yet.", err));
 
     const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setSlipCategories(list);
-        localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setSlipCategories(list);
+      localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
     }, (err) => console.log("Categories database offline or not configured yet.", err));
 
     const unsubSlips = onSnapshot(collection(db, "slips"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setSlips(list);
-        localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setSlips(list);
+      localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
     }, (err) => console.log("Slips database offline or not configured yet.", err));
 
     const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setTeamMembers(list);
-        localStorage.setItem("adaptation_team_members", JSON.stringify(list));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setTeamMembers(list);
+      localStorage.setItem("adaptation_team_members", JSON.stringify(list));
     }, (err) => console.log("Team members database offline or not configured yet.", err));
 
     const unsubActivities = onSnapshot(collection(db, "activities"), (snapshot) => {
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        list.sort((a, b) => (b.id || "").localeCompare(a.id || ""));
-        setActivities(list);
-        localStorage.setItem("adaptation_activities_list", JSON.stringify(list));
-      } else {
-        setActivities([]);
-        localStorage.setItem("adaptation_activities_list", JSON.stringify([]));
-      }
+      const list: any[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      list.sort((a, b) => (b.id || "").localeCompare(a.id || ""));
+      setActivities(list);
+      localStorage.setItem("adaptation_activities_list", JSON.stringify(list));
     }, (err) => console.log("Activities database offline or not configured yet.", err));
+
+    const unsubPayments = onSnapshot(doc(db, "payment_settings", "global"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMomoProviderInput(data.momoProvider || "MTN");
+        setMomoNumberInput(data.momoNumber || "055 776 5432");
+        setMomoAccountNameInput(data.momoAccountName || "ADAPTATION FAMILY");
+        setMomoReferenceInput(data.momoReference || "ADAPT FAMILY");
+        setBankNameInput(data.bankName || "Ecobank Ghana");
+        setBankAccountNumberInput(data.bankAccountNumber || "1441002345678");
+        setBankAccountHolderInput(data.bankAccountHolder || "ADAPTATION FAMILY");
+        setBankBranchInput(data.bankBranch || "Accra Mall Branch");
+      }
+    }, (err) => console.log("Payment settings loaded offline", err));
 
     return () => {
       unsubAdmins();
@@ -394,6 +469,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       unsubSlips();
       unsubTeam();
       unsubActivities();
+      unsubPayments();
     };
   }, []);
 
@@ -429,23 +505,36 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const saveSlips = async (updated: any[]) => {
+  const saveSlips = async (updated: any[], slipToUpsert?: any, slipIdToDelete?: string) => {
     setSlips(updated);
     localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
     try {
-      for (const slip of updated) {
-        await setDoc(doc(db, "slips", slip.id), {
-          category: slip.category,
-          matches: parseMatchesValue(slip.matches),
-          odds: slip.odds,
-          bookingCode: slip.bookingCode || "",
-          dateUploaded: slip.dateUploaded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      if (slipToUpsert) {
+        await setDoc(doc(db, "slips", slipToUpsert.id), {
+          category: slipToUpsert.category,
+          matches: parseMatchesValue(slipToUpsert.matches),
+          odds: slipToUpsert.odds,
+          bookingCode: slipToUpsert.bookingCode || "",
+          dateUploaded: slipToUpsert.dateUploaded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         });
-      }
-      const currentIds = updated.map(s => s.id);
-      for (const slip of slips) {
-        if (!currentIds.includes(slip.id)) {
-          await deleteDoc(doc(db, "slips", slip.id));
+      } else if (slipIdToDelete) {
+        await deleteDoc(doc(db, "slips", slipIdToDelete));
+      } else {
+        // Fallback: update everything if neither is specified
+        for (const slip of updated) {
+          await setDoc(doc(db, "slips", slip.id), {
+            category: slip.category,
+            matches: parseMatchesValue(slip.matches),
+            odds: slip.odds,
+            bookingCode: slip.bookingCode || "",
+            dateUploaded: slip.dateUploaded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          });
+        }
+        const currentIds = updated.map(s => s.id);
+        for (const slip of slips) {
+          if (!currentIds.includes(slip.id)) {
+            await deleteDoc(doc(db, "slips", slip.id));
+          }
         }
       }
     } catch (e) {
@@ -483,7 +572,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       bookingCode: editSlipBookingCode,
       dateUploaded: editSlipDateUploaded
     } : s);
-    saveSlips(updated);
+    const editedSlip = updated.find(s => s.id === editingSlip.id);
+    saveSlips(updated, editedSlip);
     
     // Push modification log to activity feed
     const logTitle = `Ticket Updated: ${editSlipBookingCode} in ${editSlipCategory}`;
@@ -500,25 +590,46 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
     setIsEditSlipModalOpen(false);
     setEditingSlip(null);
-    alert("Sports betting slip updated successfully!");
+    showAlert("Success", "Sports betting slip updated successfully!", "success");
   };
 
-  const handleDeleteSlip = (slipId: string) => {
+  const handleDeleteSlip = async (slipId: string) => {
     const slipToDelete = slips.find(s => s.id === slipId);
     if (!slipToDelete) return;
-    if (confirm(`Are you sure you want to delete slip "${slipToDelete.bookingCode || 'N/A'}"?`)) {
-      const updated = slips.filter(s => s.id !== slipId);
-      saveSlips(updated);
+    
+    try {
+      // 1. Delete slip directly from Firestore
+      await deleteDoc(doc(db, "slips", slipId));
 
-      // Decrement the slips count for the category
-      const updatedCategories = slipCategories.map(c => 
-        c.name === slipToDelete.category 
-          ? { ...c, slipsCount: Math.max(0, c.slipsCount - 1) } 
-          : c
-      );
-      saveSlipCategories(updatedCategories);
+      // 2. Update local slips list
+      setSlips(prev => {
+        const updated = prev.filter(s => s.id !== slipId);
+        localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
+        return updated;
+      });
 
-      // Push activity log
+      // 3. Decrement the slips count for the category
+      setSlipCategories(prev => {
+        const updatedCategories = prev.map(c => 
+          c.name === slipToDelete.category 
+            ? { ...c, slipsCount: Math.max(0, (c.slipsCount || 0) - 1) } 
+            : c
+        );
+        localStorage.setItem("adaptation_slip_categories", JSON.stringify(updatedCategories));
+        
+        // Sync specific category update to Firestore
+        const affectedCategory = updatedCategories.find(c => c.name === slipToDelete.category);
+        if (affectedCategory) {
+          setDoc(doc(db, "categories", affectedCategory.id || affectedCategory.name), {
+            name: affectedCategory.name,
+            icon: affectedCategory.icon || "receipt_long",
+            status: affectedCategory.status || "Active"
+          }).catch(err => console.error("Error updating category count:", err));
+        }
+        return updatedCategories;
+      });
+
+      // 4. Push activity log
       const logTitle = `Ticket Deleted: ${slipToDelete.bookingCode} from ${slipToDelete.category}`;
       const newActivity: ActivityItem = {
         id: Date.now().toString(),
@@ -529,9 +640,23 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         author: adminName,
         tag: "Removed"
       };
-      saveActivities([newActivity, ...activities]);
+      setActivities(prev => {
+        const updatedActivities = [newActivity, ...prev];
+        localStorage.setItem("adaptation_activities_list", JSON.stringify(updatedActivities));
+        return updatedActivities;
+      });
 
-      alert("Sports betting slip successfully deleted!");
+      // Sync activity to Firestore
+      await setDoc(doc(db, "activities", newActivity.id), {
+        type: newActivity.type,
+        icon: newActivity.icon,
+        title: newActivity.title,
+        time: newActivity.time,
+        author: newActivity.author,
+        tag: newActivity.tag
+      });
+    } catch (error) {
+      console.error("Delete slip error:", error);
     }
   };
 
@@ -599,6 +724,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [memberFormImage, setMemberFormImage] = useState("");
 
   // Payment states (fully interactive, saved to localStorage and synchronized)
+  const [momoProviderInput, setMomoProviderInput] = useState(() => localStorage.getItem("momo_provider") || "MTN");
   const [momoNumberInput, setMomoNumberInput] = useState(() => localStorage.getItem("momo_number") || "055 776 5432");
   const [momoAccountNameInput, setMomoAccountNameInput] = useState(() => localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
   const [momoReferenceInput, setMomoReferenceInput] = useState(() => localStorage.getItem("momo_reference") || "ADAPT FAMILY");
@@ -674,6 +800,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleSavePayments = async () => {
+    localStorage.setItem("momo_provider", momoProviderInput);
     localStorage.setItem("momo_number", momoNumberInput);
     localStorage.setItem("momo_account_name", momoAccountNameInput);
     localStorage.setItem("momo_reference", momoReferenceInput);
@@ -684,6 +811,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     
     try {
       await setDoc(doc(db, "payment_settings", "global"), {
+        momoProvider: momoProviderInput,
         momoNumber: momoNumberInput,
         momoAccountName: momoAccountNameInput,
         momoReference: momoReferenceInput,
@@ -704,6 +832,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleCancelPayments = () => {
+    setMomoProviderInput(localStorage.getItem("momo_provider") || "MTN");
     setMomoNumberInput(localStorage.getItem("momo_number") || "055 776 5432");
     setMomoAccountNameInput(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
     setMomoReferenceInput(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
@@ -1385,6 +1514,118 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <h3 className="font-display text-sm font-black text-[#1a1c1d] uppercase tracking-wider">Option 1: Mobile Money Transfer</h3>
                         </div>
 
+                        <div className="flex flex-col gap-2.5">
+                          <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wider">Service Provider (Scroll to Choose)</label>
+                          <div className="flex items-center gap-3 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-neutral-200 scroll-smooth snap-x">
+                            {[
+                              {
+                                id: "MTN",
+                                name: "MTN MoMo",
+                                logo: "https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg",
+                                brandColor: "bg-[#FFCC00]",
+                                borderColor: "border-[#FFCC00]/60",
+                                textColor: "text-[#8f7200]",
+                                lightBg: "bg-[#FFCC00]/10",
+                              },
+                              {
+                                id: "Telecel",
+                                name: "Telecel Cash",
+                                logo: "https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg",
+                                brandColor: "bg-[#E60000]",
+                                borderColor: "border-[#E60000]/60",
+                                textColor: "text-[#E60000]",
+                                lightBg: "bg-[#E60000]/10",
+                              },
+                              {
+                                id: "AirtelTigo",
+                                name: "AirtelTigo (AT)",
+                                logo: "https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png",
+                                brandColor: "bg-[#0056B3]",
+                                borderColor: "border-[#0056B3]/60",
+                                textColor: "text-[#0056B3]",
+                                lightBg: "bg-[#0056B3]/10",
+                              },
+                            ].map((provider) => {
+                              const isSelected = momoProviderInput === provider.id;
+                              return (
+                                <button
+                                  key={provider.id}
+                                  type="button"
+                                  onClick={() => setMomoProviderInput(provider.id)}
+                                  className={`flex-shrink-0 snap-center w-[130px] rounded-2xl border-2 p-4 flex flex-col items-center justify-between gap-3 transition-all duration-300 cursor-pointer ${
+                                    isSelected
+                                      ? `${provider.borderColor} bg-white shadow-md ring-2 ring-[#f3c623]/20 scale-[1.02]`
+                                      : "border-neutral-200 bg-white/70 hover:border-neutral-300 hover:bg-white"
+                                  }`}
+                                >
+                                  {/* Big Logo Frame */}
+                                  <div className="w-16 h-16 rounded-xl flex items-center justify-center p-2 bg-neutral-50 border border-neutral-100">
+                                    <img
+                                      src={provider.logo}
+                                      alt={provider.name}
+                                      className="w-full h-full object-contain"
+                                      referrerPolicy="no-referrer"
+                                      onError={(e) => {
+                                        if (provider.id === "Telecel") {
+                                          (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
+                                        } else if (provider.id === "AirtelTigo") {
+                                          (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="text-center">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider block text-neutral-400">
+                                      {provider.id}
+                                    </span>
+                                    <span className={`text-[11px] font-black ${isSelected ? provider.textColor : 'text-neutral-700'}`}>
+                                      {provider.name}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Selected Provider Highlight (Displays its Name and Big Logo) */}
+                          <div className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center gap-5 transition-all duration-300">
+                            <div className="w-20 h-20 bg-neutral-50 border border-neutral-100 rounded-xl flex items-center justify-center p-3 shrink-0 shadow-sm">
+                              <img
+                                src={
+                                  momoProviderInput === "MTN"
+                                    ? "https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg"
+                                    : momoProviderInput === "Telecel"
+                                    ? "https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg"
+                                    : "https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png"
+                                }
+                                alt="Selected Provider Logo"
+                                className="w-full h-full object-contain transition-transform duration-300 scale-110"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  if (momoProviderInput === "Telecel") {
+                                    (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
+                                  } else if (momoProviderInput === "AirtelTigo") {
+                                    (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Active Choice</span>
+                              <h4 className="text-base font-black text-neutral-900 font-display">
+                                {momoProviderInput === "MTN"
+                                  ? "MTN Mobile Money"
+                                  : momoProviderInput === "Telecel"
+                                  ? "Telecel Cash Ghana"
+                                  : "AirtelTigo (AT) Money"}
+                              </h4>
+                              <p className="text-[11px] text-neutral-500 font-medium">
+                                The system will render this provider's branding & logo.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs font-bold text-[#1a1c1d] uppercase tracking-wider">Mobile Money Number</label>
                           <input 
@@ -1479,7 +1720,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     <div className="bg-[#f3c623]/5 border border-[#f3c623]/20 p-4 rounded-2xl">
                       <p className="text-[11px] font-bold text-[#8f7200] uppercase tracking-wider">Preview Mode</p>
                       <p className="text-xs text-[#5d5e64] mt-1.5 font-medium">
-                        The public Mobile Money card will show: <span className="font-black text-[#1a1c1d]">"Pay to: {momoAccountNameInput || '...'}"</span> via <span className="font-black text-[#1a1c1d]">Mobile Money ({momoNumberInput || '...'})</span> with Reference <span className="font-black text-[#1a1c1d]">"{momoReferenceInput || '...'}"</span>.
+                        The public Mobile Money card will show: <span className="font-black text-[#1a1c1d]">"Pay to: {momoAccountNameInput || '...'}"</span> via <span className="font-black text-[#1a1c1d]">{momoProviderInput || 'Mobile Money'} ({momoNumberInput || '...'})</span> with Reference <span className="font-black text-[#1a1c1d]">"{momoReferenceInput || '...'}"</span>.
                       </p>
                     </div>
 
@@ -1674,111 +1915,235 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       <p className="text-[11px] text-[#5d5e64] mt-1">Manage and edit active sports betting slips currently visible in the ecosystem.</p>
                     </div>
 
-                    {/* Desktop View Table */}
-                    <div className="hidden md:block overflow-x-auto w-full border border-neutral-100 rounded-xl">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-neutral-50 text-[10px] font-bold text-[#5d5e64] uppercase tracking-wider border-b border-neutral-100">
-                            <th className="py-3 px-4">Booking Code</th>
-                            <th className="py-3 px-4">Category</th>
-                            <th className="py-3 px-4 text-center">Matches</th>
-                            <th className="py-3 px-4 text-center">Odds</th>
-                            <th className="py-3 px-4">Uploaded Date</th>
-                            <th className="py-3 px-4 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-neutral-100 text-xs">
-                          {slips.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="py-8 text-center text-neutral-400 font-medium">
-                                No booking codes uploaded yet. Use the form on the right to upload one.
-                              </td>
-                            </tr>
-                          ) : (
-                            slips.map((slip) => (
-                              <tr key={slip.id} className="hover:bg-neutral-50/50 transition-colors">
-                                <td className="py-3 px-4 font-mono font-bold text-neutral-800">{slip.bookingCode}</td>
-                                <td className="py-3 px-4">
-                                  <span className="bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                                    {slip.category}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-center font-medium text-neutral-600">{slip.matches} Matches</td>
-                                <td className="py-3 px-4 text-center font-bold text-neutral-900">{slip.odds}</td>
-                                <td className="py-3 px-4 text-neutral-500">{slip.dateUploaded || "Jun 30, 2026"}</td>
-                                <td className="py-3 px-4 text-right">
-                                  <div className="flex justify-end gap-2">
+                    {(() => {
+                      const filteredSlips = historyFilter === "All"
+                        ? slips
+                        : slips.filter(s => s.category === historyFilter);
+
+                      return (
+                        <>
+                          {/* Category Filter Tabs with Horizontal Scroll & "Clear Category" button */}
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                              <button
+                                onClick={() => setHistoryFilter("All")}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                                  historyFilter === "All"
+                                    ? "bg-[#f3c623] text-black shadow-sm"
+                                    : "bg-neutral-100 hover:bg-neutral-200 text-neutral-600"
+                                }`}
+                              >
+                                All ({slips.length})
+                              </button>
+                              {slipCategories.map((cat) => {
+                                const count = slips.filter(s => s.category === cat.name).length;
+                                return (
+                                  <button
+                                    key={cat.id || cat.name}
+                                    onClick={() => setHistoryFilter(cat.name)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                                      historyFilter === cat.name
+                                        ? "bg-[#f3c623] text-black shadow-sm"
+                                        : "bg-neutral-100 hover:bg-neutral-200 text-neutral-600"
+                                    }`}
+                                  >
+                                    {cat.name} ({count})
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {historyFilter !== "All" && (
+                              <button
+                                onClick={async () => {
+                                  const toDelete = slips.filter(s => s.category === historyFilter);
+                                  if (toDelete.length === 0) {
+                                    return;
+                                  }
+                                  try {
+                                    // 1. Update local slips list functionally
+                                    setSlips(prev => {
+                                      const remaining = prev.filter(s => s.category !== historyFilter);
+                                      localStorage.setItem("adaptation_slips_list", JSON.stringify(remaining));
+                                      return remaining;
+                                    });
+
+                                    // 2. Delete the slips from Firestore
+                                    for (const slip of toDelete) {
+                                      try {
+                                        await deleteDoc(doc(db, "slips", slip.id));
+                                      } catch (e) {
+                                        console.warn("Firestore delete failed: ", e);
+                                      }
+                                    }
+
+                                    // 3. Reset category count in state and Firestore
+                                    setSlipCategories(prev => {
+                                      const updatedCats = prev.map(c => 
+                                        c.name === historyFilter 
+                                          ? { ...c, slipsCount: 0 } 
+                                          : c
+                                      );
+                                      localStorage.setItem("adaptation_slip_categories", JSON.stringify(updatedCats));
+
+                                      // Sync to Firestore
+                                      const affectedCat = updatedCats.find(c => c.name === historyFilter);
+                                      if (affectedCat) {
+                                        setDoc(doc(db, "categories", affectedCat.id || affectedCat.name), {
+                                          name: affectedCat.name,
+                                          icon: affectedCat.icon || "receipt_long",
+                                          status: affectedCat.status || "Active"
+                                        }).catch(err => console.error("Error resetting category count:", err));
+                                      }
+                                      return updatedCats;
+                                    });
+
+                                    // 4. Log security event matching firestore.rules schema (must have time, text, type)
+                                    try {
+                                      const logId = Date.now().toString();
+                                      const logPayload = {
+                                        time: new Date().toLocaleString(),
+                                        text: `Cleared all booking codes in category "${historyFilter}" by ${adminEmail}`,
+                                        type: "Security"
+                                      };
+                                      await setDoc(doc(db, "security_logs", logId), logPayload);
+                                      
+                                      // Update local security logs state
+                                      setSecurityLogs(prev => {
+                                        const updatedLogs = [{ id: logId, ...logPayload }, ...prev];
+                                        localStorage.setItem("adaptation_security_logs", JSON.stringify(updatedLogs));
+                                        return updatedLogs;
+                                      });
+                                    } catch (err) {
+                                      console.error("Failed to write security log:", err);
+                                    }
+
+                                    // 5. Reset filter back to All
+                                    setHistoryFilter("All");
+                                  } catch (error) {
+                                    console.error("Clear category error:", error);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-error rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer self-start lg:self-auto"
+                              >
+                                <span className="material-symbols-outlined text-sm font-bold">delete_sweep</span>
+                                <span>Clear Category</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Desktop View Table */}
+                          <div className="hidden md:block overflow-x-auto w-full border border-neutral-100 rounded-xl">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-neutral-50 text-[10px] font-bold text-[#5d5e64] uppercase tracking-wider border-b border-neutral-100">
+                                  <th className="py-3 px-4">Booking Code</th>
+                                  <th className="py-3 px-4">Category</th>
+                                  <th className="py-3 px-4 text-center">Matches</th>
+                                  <th className="py-3 px-4 text-center">Odds</th>
+                                  <th className="py-3 px-4">Uploaded Date</th>
+                                  <th className="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-neutral-100 text-xs">
+                                {filteredSlips.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={6} className="py-8 text-center text-neutral-400 font-medium">
+                                      {historyFilter === "All"
+                                        ? "No booking codes uploaded yet. Use the form on the right to upload one."
+                                        : `No booking codes currently under the "${historyFilter}" category.`}
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredSlips.map((slip) => (
+                                    <tr key={slip.id} className="hover:bg-neutral-50/50 transition-colors">
+                                      <td className="py-3 px-4 font-mono font-bold text-neutral-800">{slip.bookingCode}</td>
+                                      <td className="py-3 px-4">
+                                        <span className="bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                                          {slip.category}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-center font-medium text-neutral-600">{slip.matches} Matches</td>
+                                      <td className="py-3 px-4 text-center font-bold text-neutral-900">{slip.odds}</td>
+                                      <td className="py-3 px-4 text-neutral-500">{slip.dateUploaded || "Jun 30, 2026"}</td>
+                                      <td className="py-3 px-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                          <button
+                                            onClick={() => handleOpenEditSlipModal(slip)}
+                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                            title="Edit Slip"
+                                          >
+                                            <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteSlip(slip.id)}
+                                            className="p-1.5 text-error hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                            title="Delete Slip"
+                                          >
+                                            <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Mobile View Stack */}
+                          <div className="block md:hidden flex flex-col gap-3">
+                            {filteredSlips.length === 0 ? (
+                              <div className="py-8 text-center text-neutral-400 font-medium text-xs">
+                                {historyFilter === "All"
+                                  ? "No booking codes uploaded yet. Use the form on the right to upload one."
+                                  : `No booking codes currently under the "${historyFilter}" category.`}
+                              </div>
+                            ) : (
+                              filteredSlips.map((slip) => (
+                                <div key={slip.id} className="bg-neutral-50 rounded-xl p-4 border border-neutral-100 flex flex-col gap-2.5">
+                                  <div className="flex justify-between items-start">
+                                    <span className="font-mono font-bold text-xs text-neutral-800 bg-white border border-neutral-200 px-2 py-1 rounded">
+                                      {slip.bookingCode}
+                                    </span>
+                                    <span className="bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                                      {slip.category}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-600">
+                                    <div>
+                                      <span className="text-neutral-400">Matches:</span> <strong className="text-neutral-800">{slip.matches} Matches</strong>
+                                    </div>
+                                    <div>
+                                      <span className="text-neutral-400">Odds:</span> <strong className="text-neutral-800">{slip.odds}</strong>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <span className="text-neutral-400">Uploaded:</span> <strong className="text-neutral-800">{slip.dateUploaded || "Jun 30, 2026"}</strong>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex justify-end gap-2 border-t border-neutral-200/50 pt-2 mt-1">
                                     <button
                                       onClick={() => handleOpenEditSlipModal(slip)}
-                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                                      title="Edit Slip"
+                                      className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
                                     >
-                                      <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                      <span className="material-symbols-outlined text-xs">edit</span> Edit
                                     </button>
                                     <button
                                       onClick={() => handleDeleteSlip(slip.id)}
-                                      className="p-1.5 text-error hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                      title="Delete Slip"
+                                      className="px-3 py-1.5 text-error hover:bg-red-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
                                     >
-                                      <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                      <span className="material-symbols-outlined text-xs">delete</span> Delete
                                     </button>
                                   </div>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Mobile View Stack */}
-                    <div className="block md:hidden flex flex-col gap-3">
-                      {slips.length === 0 ? (
-                        <div className="py-8 text-center text-neutral-400 font-medium text-xs">
-                          No booking codes uploaded yet. Use the form on the right to upload one.
-                        </div>
-                      ) : (
-                        slips.map((slip) => (
-                          <div key={slip.id} className="bg-neutral-50 rounded-xl p-4 border border-neutral-100 flex flex-col gap-2.5">
-                            <div className="flex justify-between items-start">
-                              <span className="font-mono font-bold text-xs text-neutral-800 bg-white border border-neutral-200 px-2 py-1 rounded">
-                                {slip.bookingCode}
-                              </span>
-                              <span className="bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                                {slip.category}
-                              </span>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-600">
-                              <div>
-                                <span className="text-neutral-400">Matches:</span> <strong className="text-neutral-800">{slip.matches} Matches</strong>
-                              </div>
-                              <div>
-                                <span className="text-neutral-400">Odds:</span> <strong className="text-neutral-800">{slip.odds}</strong>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-neutral-400">Uploaded:</span> <strong className="text-neutral-800">{slip.dateUploaded || "Jun 30, 2026"}</strong>
-                              </div>
-                            </div>
-
-                            <div className="flex justify-end gap-2 border-t border-neutral-200/50 pt-2 mt-1">
-                              <button
-                                onClick={() => handleOpenEditSlipModal(slip)}
-                                className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                              >
-                                <span className="material-symbols-outlined text-xs">edit</span> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSlip(slip.id)}
-                                className="px-3 py-1.5 text-error hover:bg-red-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                              >
-                                <span className="material-symbols-outlined text-xs">delete</span> Delete
-                              </button>
-                            </div>
+                                </div>
+                              ))
+                            )}
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </section>
 
@@ -2132,7 +2497,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
                   {/* Recent Logs Card */}
                   <div className="bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.01)] flex flex-col gap-4 w-full">
-                    <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-neutral-400">Recent Security Logs</h3>
+                    <div className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-3">
+                      <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-neutral-400">Recent Security Logs</h3>
+                      {securityLogs.length > 0 && (
+                        <button
+                          onClick={handleClearLogs}
+                          className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide bg-red-50 hover:bg-red-100 text-[#ba1a1a] rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="Clear security logs instantly"
+                        >
+                          <span className="material-symbols-outlined text-xs font-bold">delete_sweep</span>
+                          <span>Clear Logs</span>
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-3 mt-2">
                       {securityLogs.map((log) => (
                         <div key={log.id} className="flex items-start gap-3 text-xs border-b border-neutral-50 pb-2 last:border-0 last:pb-0">
@@ -2671,6 +3048,63 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 flex flex-col gap-4 animate-scale-in">
+            <div className="flex items-center gap-3 text-amber-500">
+              <span className="material-symbols-outlined text-3xl font-bold">warning</span>
+              <h3 className="text-base font-extrabold text-neutral-900">{confirmModal.title}</h3>
+            </div>
+            <p className="text-xs text-neutral-600 leading-relaxed font-medium">{confirmModal.message}</p>
+            <div className="flex justify-end gap-3 mt-2">
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                {confirmModal.cancelText || "Cancel"}
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+              >
+                {confirmModal.confirmText || "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {alertModal.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-100 flex flex-col gap-4 animate-scale-in">
+            <div className="flex items-center gap-3">
+              {alertModal.type === "error" ? (
+                <span className="material-symbols-outlined text-red-500 text-3xl font-bold">cancel</span>
+              ) : alertModal.type === "info" ? (
+                <span className="material-symbols-outlined text-blue-500 text-3xl font-bold">info</span>
+              ) : (
+                <span className="material-symbols-outlined text-emerald-500 text-3xl font-bold">check_circle</span>
+              )}
+              <h3 className="text-base font-extrabold text-neutral-900">{alertModal.title}</h3>
+            </div>
+            <p className="text-xs text-neutral-600 leading-relaxed font-medium">{alertModal.message}</p>
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-5 py-2 bg-[#f3c623] hover:bg-[#d9b01c] text-black rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
