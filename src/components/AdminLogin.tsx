@@ -133,7 +133,7 @@ export default function AdminLogin({ onBackToHome, onNavigateToPrivacy, onNaviga
   };
 
   return (
-    <div className="admin-portal min-h-screen w-full flex flex-col items-center justify-center bg-surface-bright relative overflow-hidden py-16 px-4 animate-in fade-in duration-300 select-none">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-surface-bright relative overflow-hidden py-16 px-4 animate-in fade-in duration-300 select-none">
       
       {/* Decorative Background Blur Circles matching Kinetic Light theme using yellow/gold color */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#f3c623]/10 rounded-full blur-[100px] pointer-events-none"></div>
