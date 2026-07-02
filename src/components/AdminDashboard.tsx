@@ -144,32 +144,24 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     ];
   });
 
-  const saveAdmins = async (updated: any[]) => {
+  const saveAdmins = async (updated: any[], operation?: { type: 'add' | 'delete', admin: any }) => {
     setAdmins(updated);
     localStorage.setItem("adaptation_admins_list", JSON.stringify(updated));
     try {
-      for (const admin of updated) {
-        const docId = (admin.email && admin.email.includes("@")) 
-          ? admin.email.toLowerCase().trim() 
-          : (admin.id || admin.email);
-        await setDoc(doc(db, "admins", docId), {
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-          lastActive: admin.lastActive || "Active Now",
-          initials: admin.initials || "AD"
-        });
-      }
-      const currentIds = updated.map(a => {
-        return (a.email && a.email.includes("@")) 
-          ? a.email.toLowerCase().trim() 
-          : (a.id || a.email);
-      });
-      for (const admin of admins) {
-        const adminId = (admin.email && admin.email.includes("@")) 
-          ? admin.email.toLowerCase().trim() 
-          : (admin.id || admin.email);
-        if (!currentIds.includes(adminId)) {
+      if (operation && operation.admin) {
+        const adminId = (operation.admin.email && operation.admin.email.includes("@")) 
+          ? operation.admin.email.toLowerCase().trim() 
+          : (operation.admin.id || operation.admin.email);
+
+        if (operation.type === 'add') {
+          await setDoc(doc(db, "admins", adminId), {
+            name: operation.admin.name,
+            email: operation.admin.email,
+            role: operation.admin.role,
+            lastActive: operation.admin.lastActive || "Active Now",
+            initials: operation.admin.initials || "AD"
+          });
+        } else if (operation.type === 'delete') {
           await deleteDoc(doc(db, "admins", adminId));
         }
       }
@@ -260,7 +252,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     };
 
     const updatedAdmins = [newAdmin, ...admins];
-    saveAdmins(updatedAdmins);
+    saveAdmins(updatedAdmins, { type: 'add', admin: newAdmin });
 
     // Add security log
     const now = new Date();
@@ -287,8 +279,9 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       "Revoke Admin Access",
       `Are you sure you want to revoke administrative access for ${name}?`,
       () => {
+        const adminToDelete = admins.find(a => a.id === id);
         const updated = admins.filter(a => a.id !== id);
-        saveAdmins(updated);
+        saveAdmins(updated, { type: 'delete', admin: adminToDelete });
 
         // Add security log
         const now = new Date();
