@@ -117,23 +117,14 @@ export default function AdminLogin({ onBackToHome, onNavigateToPrivacy, onNaviga
       setIsLoading(false);
       onLoginSuccess();
     } catch (err: any) {
-      console.warn("Firebase Google login error, checking user email address fallback: ", err.message);
-      
-      // Sandbox fallback: check if current auth has a user or default to super admin
-      const currentUserEmail = auth.currentUser?.email || "abubakarsadikmusah2004@gmail.com";
-      const hasAccess = await verifyAdminAccess(currentUserEmail);
-      if (hasAccess) {
-        setIsLoading(false);
-        onLoginSuccess();
-      } else {
-        setIsLoading(false);
-        setErrorMsg("Google Sign-In failed or was blocked. Please check your credentials.");
-      }
+      console.warn("Firebase Google login error: ", err.message);
+      setIsLoading(false);
+      setErrorMsg("Google Sign-In failed or was blocked. Please ensure your hosted domain is whitelisted in Firebase Authentication settings.");
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-surface-bright relative overflow-hidden py-16 px-4 animate-in fade-in duration-300 select-none">
+    <div className="admin-portal min-h-screen w-full flex flex-col items-center justify-center bg-surface-bright relative overflow-hidden py-16 px-4 animate-in fade-in duration-300 select-none">
       
       {/* Decorative Background Blur Circles matching Kinetic Light theme using yellow/gold color */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#f3c623]/10 rounded-full blur-[100px] pointer-events-none"></div>

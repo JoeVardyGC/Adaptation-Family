@@ -901,7 +901,7 @@ export default function App() {
                           />
                           
                           {/* Dark overlay gradient for high readability contrast */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 transition-all duration-300 group-hover:from-black/90"></div>
                           
                           {/* Overlay content at bottom with gentle hover lifting */}
                           <div className="relative z-20 p-5 flex flex-col text-left transition-transform duration-300 ease-out group-hover:translate-y-[-4px]">
@@ -1154,7 +1154,7 @@ export default function App() {
                         />
                         
                         {/* Dark overlay gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 transition-all duration-300 group-hover:from-black/90"></div>
                         
                         {/* Overlay content at bottom */}
                         <div className="relative z-20 p-5 flex flex-col text-left">
