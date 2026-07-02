@@ -178,15 +178,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
 
-  const saveSecurityLogs = async (updated: any[]) => {
+  const saveSecurityLogs = async (updated: any[], newLogToSync?: any) => {
     setSecurityLogs(updated);
     localStorage.setItem("adaptation_security_logs", JSON.stringify(updated));
     try {
-      for (const log of updated) {
-        await setDoc(doc(db, "security_logs", log.id), {
-          time: log.time,
-          text: log.text,
-          type: log.type
+      if (newLogToSync) {
+        await setDoc(doc(db, "security_logs", newLogToSync.id), {
+          time: newLogToSync.time,
+          text: newLogToSync.text,
+          type: newLogToSync.type
         });
       }
     } catch (e) {
@@ -271,7 +271,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       text: `Granted ${adminFormRole} access to ${emailVal}`,
       type: "invite"
     };
-    saveSecurityLogs([newLog, ...securityLogs]);
+    saveSecurityLogs([newLog, ...securityLogs], newLog);
 
     // Reset inputs
     setAdminFormEmail("");
@@ -299,7 +299,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           text: `Revoked access for ${name}`,
           type: "error"
         };
-        saveSecurityLogs([newLog, ...securityLogs]);
+        saveSecurityLogs([newLog, ...securityLogs], newLog);
         showAlert("Access Revoked", `Successfully revoked administrative access for ${name}.`, "success");
       }
     );
