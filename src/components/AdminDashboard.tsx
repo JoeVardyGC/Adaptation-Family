@@ -928,7 +928,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   );
 
   return (
-    <div className="min-h-screen w-full flex bg-[#f9f9fb] text-[#1a1c1d] antialiased select-none font-sans relative overflow-x-hidden">
+    <div className="admin-portal min-h-screen w-full flex bg-[#f9f9fb] text-[#1a1c1d] antialiased select-none font-sans relative overflow-x-hidden">
       
       {/* 1. Desktop Left Sidebar */}
       <aside className="bg-[#f3f3f5] text-[#1a1c1d] h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col border-r border-neutral-200 z-40 shadow-sm overflow-y-auto">

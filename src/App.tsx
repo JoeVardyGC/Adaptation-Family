@@ -832,7 +832,7 @@ export default function App() {
                             setSelectedCategoryTab(category.name);
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
-                          className="w-full py-2.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface hover:text-primary-container font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all border border-surface-container text-center flex justify-center items-center gap-1.5 portrait-view-more-btn cursor-pointer"
+                          className="w-full py-2.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface hover:text-primary-container font-normal text-xs uppercase tracking-wider rounded-xl transition-all border border-surface-container text-center flex justify-center items-center gap-1.5 portrait-view-more-btn cursor-pointer"
                         >
                           View More {category.name} →
                         </button>
@@ -859,7 +859,7 @@ export default function App() {
                       setActiveView('donate');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="bg-primary-container text-on-primary-container hover:bg-primary-container/90 font-label-lg text-label-lg py-2.5 px-6 rounded-xl flex items-center gap-sm transition-all shadow-md font-normal text-base cursor-pointer active:scale-95"
+                    className="bg-primary-container text-on-primary-container hover:bg-primary-container/90 py-2.5 px-6 rounded-xl flex items-center gap-sm transition-all shadow-md font-normal text-base cursor-pointer active:scale-95"
                   >
                     <span className="material-symbols-outlined text-on-primary-container text-xl">payments</span> 
                     Donate via Mobile Money
@@ -1655,9 +1655,19 @@ export default function App() {
                 <h5 className="text-sm font-bold text-white uppercase tracking-widest border-l-2 border-[#f3c623] pl-2.5">
                   Get In Touch
                 </h5>
-                <p className="text-sm text-neutral-400 leading-relaxed">
+                <p className="text-sm text-neutral-400 leading-relaxed mb-1">
                   Have partnership proposals, marketing inquiries, or questions? Connect with our administration.
                 </p>
+                <div className="flex flex-col gap-2.5 text-sm text-neutral-400">
+                  <a href="tel:0593562555" className="flex items-center gap-2 hover:text-[#f3c623] transition-colors w-fit">
+                    <span className="material-symbols-outlined text-[#f3c623] text-lg">call</span>
+                    <span>0593562555</span>
+                  </a>
+                  <a href="mailto:nurseismaila@gmail.com" className="flex items-center gap-2 hover:text-[#f3c623] transition-colors w-fit">
+                    <span className="material-symbols-outlined text-[#f3c623] text-lg">mail</span>
+                    <span className="break-all">nurseismaila@gmail.com</span>
+                  </a>
+                </div>
               </div>
 
             </div>
