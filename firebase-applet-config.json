@@ -1,10 +1,10 @@
 {
-  "projectId": "adaptationfamily",
+  "projectId": "joe-vardy-online-app",
   "appId": "1:1093585238203:web:9934b2eff21223739c119e",
   "apiKey": "AIzaSyBnrQUHUXO3unCVa4NrnYGymqMNl-4-hQ0",
-  "authDomain": "adaptationfamily.firebaseapp.com",
+  "authDomain": "joe-vardy-online-app.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-adaptationfamily-d3e1f03a-9d08-4b98-a5f4-f73418b7eb6d",
-  "storageBucket": "adaptationfamily.firebasestorage.app",
+  "storageBucket": "joe-vardy-online-app.firebasestorage.app",
   "messagingSenderId": "1093585238203",
   "measurementId": ""
 }

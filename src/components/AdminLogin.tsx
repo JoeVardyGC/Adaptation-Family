@@ -117,9 +117,10 @@ export default function AdminLogin({ onBackToHome, onNavigateToPrivacy, onNaviga
       setIsLoading(false);
       onLoginSuccess();
     } catch (err: any) {
-      console.warn("Firebase Google login error: ", err.message);
+      console.warn("Firebase Google login error: ", err);
       setIsLoading(false);
-      setErrorMsg("Google Sign-In failed or was blocked. Please ensure your hosted domain is whitelisted in Firebase Authentication settings.");
+      const detail = err.code ? ` (${err.code})` : ` (${err.message})`;
+      setErrorMsg("Google Sign-In failed" + detail + ". Please ensure your hosted domain is whitelisted in Firebase Authentication settings.");
     }
   };
 
