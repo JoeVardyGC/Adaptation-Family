@@ -24,6 +24,71 @@ interface TeamMember {
   image: string;
 }
 
+const AVAILABLE_ICONS = [
+  "sports_soccer",
+  "construction",
+  "cached",
+  "payments",
+  "psychology",
+  "hourglass_empty",
+  "settings",
+  "sports_basketball",
+  "sports_tennis",
+  "sports_cricket",
+  "rocket_launch",
+  "flash_on",
+  "emoji_events",
+  "star",
+  "trending_up",
+  "insights",
+  "receipt_long",
+  "account_balance_wallet"
+];
+
+const autoSelectIconByName = (name: string): string => {
+  const lowercase = name.toLowerCase();
+  if (lowercase.includes("world cup") || lowercase.includes("soccer") || lowercase.includes("football") || lowercase.includes("goal") || lowercase.includes("fifa")) return "sports_soccer";
+  if (lowercase.includes("builder") || lowercase.includes("construction") || lowercase.includes("hammer") || lowercase.includes("craft")) return "construction";
+  if (lowercase.includes("roll over") || lowercase.includes("rollover") || lowercase.includes("loop") || lowercase.includes("cached") || lowercase.includes("refresh")) return "cached";
+  if (lowercase.includes("dream") || lowercase.includes("payments") || lowercase.includes("money") || lowercase.includes("cedi") || lowercase.includes("cash") || lowercase.includes("pay")) return "payments";
+  if (lowercase.includes("beticology") || lowercase.includes("psychology") || lowercase.includes("mind") || lowercase.includes("brain") || lowercase.includes("think")) return "psychology";
+  if (lowercase.includes("long") || lowercase.includes("general") || lowercase.includes("hour") || lowercase.includes("time") || lowercase.includes("wait") || lowercase.includes("hourglass")) return "hourglass_empty";
+  if (lowercase.includes("engine") || lowercase.includes("settings") || lowercase.includes("system") || lowercase.includes("gear") || lowercase.includes("core")) return "settings";
+  if (lowercase.includes("basketball") || lowercase.includes("nba")) return "sports_basketball";
+  if (lowercase.includes("tennis") || lowercase.includes("atp")) return "sports_tennis";
+  if (lowercase.includes("cricket")) return "sports_cricket";
+  if (lowercase.includes("rocket") || lowercase.includes("launch") || lowercase.includes("express")) return "rocket_launch";
+  if (lowercase.includes("flash") || lowercase.includes("lightning") || lowercase.includes("quick")) return "flash_on";
+  if (lowercase.includes("trophy") || lowercase.includes("cup") || lowercase.includes("win") || lowercase.includes("champion") || lowercase.includes("event")) return "emoji_events";
+  if (lowercase.includes("star") || lowercase.includes("premium") || lowercase.includes("elite") || lowercase.includes("fav")) return "star";
+  if (lowercase.includes("trending") || lowercase.includes("growth") || lowercase.includes("rise")) return "trending_up";
+  if (lowercase.includes("insight") || lowercase.includes("chart") || lowercase.includes("analysis") || lowercase.includes("analytics")) return "insights";
+  if (lowercase.includes("receipt") || lowercase.includes("ticket") || lowercase.includes("slip") || lowercase.includes("booking")) return "receipt_long";
+  if (lowercase.includes("wallet") || lowercase.includes("bank") || lowercase.includes("finance")) return "account_balance_wallet";
+  return "receipt_long";
+};
+
+const getCategoryStyles = (index: number) => {
+  const styles = [
+    { bg: "bg-emerald-50/20", border: "border-emerald-200/80 hover:border-emerald-400/60", line: "before:bg-emerald-500", text: "text-emerald-800", countText: "text-emerald-700", subText: "text-emerald-600/80", labelBg: "bg-emerald-50 border-emerald-200/50" },
+    { bg: "bg-indigo-50/20", border: "border-indigo-200/80 hover:border-indigo-400/60", line: "before:bg-indigo-500", text: "text-indigo-800", countText: "text-indigo-700", subText: "text-indigo-600/80", labelBg: "bg-indigo-50 border-indigo-200/50" },
+    { bg: "bg-violet-50/20", border: "border-violet-200/80 hover:border-violet-400/60", line: "before:bg-violet-500", text: "text-violet-800", countText: "text-violet-700", subText: "text-violet-600/80", labelBg: "bg-violet-50 border-violet-200/50" },
+    { bg: "bg-amber-50/20", border: "border-amber-200/80 hover:border-amber-400/60", line: "before:bg-amber-500", text: "text-amber-800", countText: "text-amber-700", subText: "text-amber-600/80", labelBg: "bg-amber-50 border-amber-200/50" },
+    { bg: "bg-rose-50/20", border: "border-rose-200/80 hover:border-rose-400/60", line: "before:bg-rose-500", text: "text-rose-800", countText: "text-rose-700", subText: "text-rose-600/80", labelBg: "bg-rose-50 border-rose-200/50" },
+    { bg: "bg-teal-50/20", border: "border-teal-200/80 hover:border-teal-400/60", line: "before:bg-teal-500", text: "text-teal-800", countText: "text-teal-700", subText: "text-teal-600/80", labelBg: "bg-teal-50 border-teal-200/50" },
+    { bg: "bg-sky-50/20", border: "border-sky-200/80 hover:border-sky-400/60", line: "before:bg-sky-500", text: "text-sky-800", countText: "text-sky-700", subText: "text-sky-600/80", labelBg: "bg-sky-50 border-sky-200/50" },
+    { bg: "bg-orange-50/20", border: "border-orange-200/80 hover:border-orange-400/60", line: "before:bg-orange-500", text: "text-orange-800", countText: "text-orange-700", subText: "text-orange-600/80", labelBg: "bg-orange-50 border-orange-200/50" },
+    { bg: "bg-cyan-50/20", border: "border-cyan-200/80 hover:border-cyan-400/60", line: "before:bg-cyan-500", text: "text-cyan-800", countText: "text-cyan-700", subText: "text-cyan-600/80", labelBg: "bg-cyan-50 border-cyan-200/50" },
+    { bg: "bg-fuchsia-50/20", border: "border-fuchsia-200/80 hover:border-fuchsia-400/60", line: "before:bg-fuchsia-500", text: "text-fuchsia-800", countText: "text-fuchsia-700", subText: "text-fuchsia-600/80", labelBg: "bg-fuchsia-50 border-fuchsia-200/50" },
+  ];
+  return styles[index % styles.length];
+};
+
+const toTitleCase = (str: string) => {
+  if (!str) return str;
+  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const currentUser = auth.currentUser;
   const adminEmail = currentUser?.email || "abubakarsadikmusah2004@gmail.com";
@@ -84,7 +149,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     localStorage.setItem("adaptation_admins_list", JSON.stringify(updated));
     try {
       for (const admin of updated) {
-        await setDoc(doc(db, "admins", admin.id || admin.email), {
+        const docId = (admin.email && admin.email.includes("@")) 
+          ? admin.email.toLowerCase().trim() 
+          : (admin.id || admin.email);
+        await setDoc(doc(db, "admins", docId), {
           name: admin.name,
           email: admin.email,
           role: admin.role,
@@ -92,9 +160,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           initials: admin.initials || "AD"
         });
       }
-      const currentIds = updated.map(a => a.id || a.email);
+      const currentIds = updated.map(a => {
+        return (a.email && a.email.includes("@")) 
+          ? a.email.toLowerCase().trim() 
+          : (a.id || a.email);
+      });
       for (const admin of admins) {
-        const adminId = admin.id || admin.email;
+        const adminId = (admin.email && admin.email.includes("@")) 
+          ? admin.email.toLowerCase().trim() 
+          : (admin.id || admin.email);
         if (!currentIds.includes(adminId)) {
           await deleteDoc(doc(db, "admins", adminId));
         }
@@ -209,21 +283,26 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleDeleteAdmin = (id: string, name: string) => {
-    if (confirm(`Are you sure you want to revoke administrative access for ${name}?`)) {
-      const updated = admins.filter(a => a.id !== id);
-      saveAdmins(updated);
+    showConfirm(
+      "Revoke Admin Access",
+      `Are you sure you want to revoke administrative access for ${name}?`,
+      () => {
+        const updated = admins.filter(a => a.id !== id);
+        saveAdmins(updated);
 
-      // Add security log
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-      const newLog = {
-        id: Date.now().toString(),
-        time: timeStr,
-        text: `Revoked access for ${name}`,
-        type: "error"
-      };
-      saveSecurityLogs([newLog, ...securityLogs]);
-    }
+        // Add security log
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        const newLog = {
+          id: Date.now().toString(),
+          time: timeStr,
+          text: `Revoked access for ${name}`,
+          type: "error"
+        };
+        saveSecurityLogs([newLog, ...securityLogs]);
+        showAlert("Access Revoked", `Successfully revoked administrative access for ${name}.`, "success");
+      }
+    );
   };
 
   // States for Slip and Category Management
@@ -272,56 +351,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         return JSON.parse(saved);
       } catch (e) {}
     }
-    const defaults = [
-      { id: "wc-1", category: "World Cup", matches: 9, odds: "12.40", bookingCode: "AF-WOR-1240", dateUploaded: "Jun 30, 2026" },
-      { id: "wc-2", category: "World Cup", matches: 9, odds: "13.40", bookingCode: "AF-WOR-1340", dateUploaded: "Jun 30, 2026" },
-      { id: "wc-3", category: "World Cup", matches: 9, odds: "14.40", bookingCode: "AF-WOR-1440", dateUploaded: "Jun 30, 2026" },
-      { id: "wc-4", category: "World Cup", matches: 9, odds: "15.40", bookingCode: "AF-WOR-1540", dateUploaded: "Jun 30, 2026" },
-      { id: "wc-5", category: "World Cup", matches: 9, odds: "16.40", bookingCode: "AF-WOR-1640", dateUploaded: "Jun 30, 2026" },
-      
-      { id: "bb-1", category: "Bet Builder", matches: 5, odds: "8.00", bookingCode: "AF-BET-800", dateUploaded: "Jun 30, 2026" },
-      { id: "bb-2", category: "Bet Builder", matches: 5, odds: "8.10", bookingCode: "AF-BET-810", dateUploaded: "Jun 30, 2026" },
-      { id: "bb-3", category: "Bet Builder", matches: 5, odds: "8.20", bookingCode: "AF-BET-820", dateUploaded: "Jun 30, 2026" },
-      { id: "bb-4", category: "Bet Builder", matches: 5, odds: "8.30", bookingCode: "AF-BET-830", dateUploaded: "Jun 30, 2026" },
-      { id: "bb-5", category: "Bet Builder", matches: 5, odds: "8.40", bookingCode: "AF-BET-840", dateUploaded: "Jun 30, 2026" },
-
-      { id: "ro-1", category: "Roll Over", matches: 2, odds: "1.80", bookingCode: "AF-ROL-180", dateUploaded: "Jun 30, 2026" },
-      { id: "ro-2", category: "Roll Over", matches: 2, odds: "1.81", bookingCode: "AF-ROL-181", dateUploaded: "Jun 30, 2026" },
-      { id: "ro-3", category: "Roll Over", matches: 2, odds: "1.82", bookingCode: "AF-ROL-182", dateUploaded: "Jun 30, 2026" },
-      { id: "ro-4", category: "Roll Over", matches: 2, odds: "1.83", bookingCode: "AF-ROL-183", dateUploaded: "Jun 30, 2026" },
-      { id: "ro-5", category: "Roll Over", matches: 2, odds: "1.84", bookingCode: "AF-ROL-184", dateUploaded: "Jun 30, 2026" },
-
-      { id: "cd-1", category: "1 Cedi and a Dream", matches: 25, odds: "950.00", bookingCode: "AF-ONE-95000", dateUploaded: "Jun 30, 2026" },
-      { id: "cd-2", category: "1 Cedi and a Dream", matches: 25, odds: "951.00", bookingCode: "AF-ONE-95100", dateUploaded: "Jun 30, 2026" },
-      { id: "cd-3", category: "1 Cedi and a Dream", matches: 25, odds: "952.00", bookingCode: "AF-ONE-95200", dateUploaded: "Jun 30, 2026" },
-      { id: "cd-4", category: "1 Cedi and a Dream", matches: 25, odds: "953.00", bookingCode: "AF-ONE-95300", dateUploaded: "Jun 30, 2026" },
-      { id: "cd-5", category: "1 Cedi and a Dream", matches: 25, odds: "954.00", bookingCode: "AF-ONE-95400", dateUploaded: "Jun 30, 2026" },
-
-      { id: "bet-1", category: "Beticology", matches: 4, odds: "5.05", bookingCode: "AF-BIC-505", dateUploaded: "Jun 30, 2026" },
-      { id: "bet-2", category: "Beticology", matches: 4, odds: "5.15", bookingCode: "AF-BIC-515", dateUploaded: "Jun 30, 2026" },
-      { id: "bet-3", category: "Beticology", matches: 4, odds: "5.25", bookingCode: "AF-BIC-525", dateUploaded: "Jun 30, 2026" },
-      { id: "bet-4", category: "Beticology", matches: 4, odds: "5.35", bookingCode: "AF-BIC-535", dateUploaded: "Jun 30, 2026" },
-      { id: "bet-5", category: "Beticology", matches: 4, odds: "5.45", bookingCode: "AF-BIC-545", dateUploaded: "Jun 30, 2026" },
-
-      { id: "lb-1", category: "General / Long Bets", matches: 12, odds: "20.50", bookingCode: "AF-LON-2050", dateUploaded: "Jun 30, 2026" },
-      { id: "lb-2", category: "General / Long Bets", matches: 12, odds: "21.50", bookingCode: "AF-LON-2150", dateUploaded: "Jun 30, 2026" },
-      { id: "lb-3", category: "General / Long Bets", matches: 12, odds: "22.50", bookingCode: "AF-LON-2250", dateUploaded: "Jun 30, 2026" },
-      { id: "lb-4", category: "General / Long Bets", matches: 12, odds: "23.50", bookingCode: "AF-LON-2350", dateUploaded: "Jun 30, 2026" },
-      { id: "lb-5", category: "General / Long Bets", matches: 12, odds: "24.50", bookingCode: "AF-LON-2450", dateUploaded: "Jun 30, 2026" },
-
-      { id: "er-1", category: "Engine Room", matches: 3, odds: "3.05", bookingCode: "AF-ENG-305", dateUploaded: "Jun 30, 2026" },
-      { id: "er-2", category: "Engine Room", matches: 3, odds: "3.15", bookingCode: "AF-ENG-315", dateUploaded: "Jun 30, 2026" },
-      { id: "er-3", category: "Engine Room", matches: 3, odds: "3.25", bookingCode: "AF-ENG-325", dateUploaded: "Jun 30, 2026" },
-      { id: "er-4", category: "Engine Room", matches: 3, odds: "3.35", bookingCode: "AF-ENG-335", dateUploaded: "Jun 30, 2026" },
-      { id: "er-5", category: "Engine Room", matches: 3, odds: "3.45", bookingCode: "AF-ENG-345", dateUploaded: "Jun 30, 2026" }
-    ];
-    localStorage.setItem("adaptation_slips_list", JSON.stringify(defaults));
-    return defaults;
+    return [];
   });
 
   const [categoryFormName, setCategoryFormName] = useState("");
+  const [categoryFormIcon, setCategoryFormIcon] = useState("receipt_long");
   const [historyFilter, setHistoryFilter] = useState<string>("All");
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState("");
 
   // Custom alert and confirmation modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -452,13 +490,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setMomoProviderInput(data.momoProvider || "MTN");
-        setMomoNumberInput(data.momoNumber || "055 776 5432");
-        setMomoAccountNameInput(data.momoAccountName || "ADAPTATION FAMILY");
-        setMomoReferenceInput(data.momoReference || "ADAPT FAMILY");
-        setBankNameInput(data.bankName || "Ecobank Ghana");
-        setBankAccountNumberInput(data.bankAccountNumber || "1441002345678");
-        setBankAccountHolderInput(data.bankAccountHolder || "ADAPTATION FAMILY");
-        setBankBranchInput(data.bankBranch || "Accra Mall Branch");
+        setMomoNumberInput(data.momoNumber || "");
+        setMomoAccountNameInput(data.momoAccountName || "");
+        setMomoReferenceInput(data.momoReference || "");
+        setBankNameInput(data.bankName || "");
+        setBankAccountNumberInput(data.bankAccountNumber || "");
+        setBankAccountHolderInput(data.bankAccountHolder || "");
+        setBankBranchInput(data.bankBranch || "");
       }
     }, (err) => console.log("Payment settings loaded offline", err));
 
@@ -593,71 +631,80 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     showAlert("Success", "Sports betting slip updated successfully!", "success");
   };
 
-  const handleDeleteSlip = async (slipId: string) => {
+  const handleDeleteSlip = (slipId: string) => {
     const slipToDelete = slips.find(s => s.id === slipId);
     if (!slipToDelete) return;
-    
-    try {
-      // 1. Delete slip directly from Firestore
-      await deleteDoc(doc(db, "slips", slipId));
 
-      // 2. Update local slips list
-      setSlips(prev => {
-        const updated = prev.filter(s => s.id !== slipId);
-        localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
-        return updated;
-      });
+    showConfirm(
+      "Delete Booking Code",
+      `Are you sure you want to delete the booking code "${slipToDelete.bookingCode}"?`,
+      async () => {
+        try {
+          // 1. Delete slip directly from Firestore
+          await deleteDoc(doc(db, "slips", slipId));
 
-      // 3. Decrement the slips count for the category
-      setSlipCategories(prev => {
-        const updatedCategories = prev.map(c => 
-          c.name === slipToDelete.category 
-            ? { ...c, slipsCount: Math.max(0, (c.slipsCount || 0) - 1) } 
-            : c
-        );
-        localStorage.setItem("adaptation_slip_categories", JSON.stringify(updatedCategories));
-        
-        // Sync specific category update to Firestore
-        const affectedCategory = updatedCategories.find(c => c.name === slipToDelete.category);
-        if (affectedCategory) {
-          setDoc(doc(db, "categories", affectedCategory.id || affectedCategory.name), {
-            name: affectedCategory.name,
-            icon: affectedCategory.icon || "receipt_long",
-            status: affectedCategory.status || "Active"
-          }).catch(err => console.error("Error updating category count:", err));
+          // 2. Update local slips list
+          setSlips(prev => {
+            const updated = prev.filter(s => s.id !== slipId);
+            localStorage.setItem("adaptation_slips_list", JSON.stringify(updated));
+            return updated;
+          });
+
+          // 3. Decrement the slips count for the category
+          setSlipCategories(prev => {
+            const updatedCategories = prev.map(c => 
+              c.name === slipToDelete.category 
+                ? { ...c, slipsCount: Math.max(0, (c.slipsCount || 0) - 1) } 
+                : c
+            );
+            localStorage.setItem("adaptation_slip_categories", JSON.stringify(updatedCategories));
+            
+            // Sync specific category update to Firestore
+            const affectedCategory = updatedCategories.find(c => c.name === slipToDelete.category);
+            if (affectedCategory) {
+              setDoc(doc(db, "categories", affectedCategory.id || affectedCategory.name), {
+                name: affectedCategory.name,
+                icon: affectedCategory.icon || "receipt_long",
+                status: affectedCategory.status || "Active"
+              }).catch(err => console.error("Error updating category count:", err));
+            }
+            return updatedCategories;
+          });
+
+          // 4. Push activity log
+          const logTitle = `Ticket Deleted: ${slipToDelete.bookingCode} from ${slipToDelete.category}`;
+          const newActivity: ActivityItem = {
+            id: Date.now().toString(),
+            type: "error" as const,
+            icon: "delete_forever",
+            title: logTitle,
+            time: "Just now",
+            author: adminName,
+            tag: "Removed"
+          };
+          setActivities(prev => {
+            const updatedActivities = [newActivity, ...prev];
+            localStorage.setItem("adaptation_activities_list", JSON.stringify(updatedActivities));
+            return updatedActivities;
+          });
+
+          // Sync activity to Firestore
+          await setDoc(doc(db, "activities", newActivity.id), {
+            type: newActivity.type,
+            icon: newActivity.icon,
+            title: newActivity.title,
+            time: newActivity.time,
+            author: newActivity.author,
+            tag: newActivity.tag
+          });
+
+          showAlert("Deleted", "Booking code deleted successfully!", "success");
+        } catch (error) {
+          console.error("Delete slip error:", error);
+          showAlert("Error", "Failed to delete booking code. Please try again.", "error");
         }
-        return updatedCategories;
-      });
-
-      // 4. Push activity log
-      const logTitle = `Ticket Deleted: ${slipToDelete.bookingCode} from ${slipToDelete.category}`;
-      const newActivity: ActivityItem = {
-        id: Date.now().toString(),
-        type: "error" as const,
-        icon: "delete_forever",
-        title: logTitle,
-        time: "Just now",
-        author: adminName,
-        tag: "Removed"
-      };
-      setActivities(prev => {
-        const updatedActivities = [newActivity, ...prev];
-        localStorage.setItem("adaptation_activities_list", JSON.stringify(updatedActivities));
-        return updatedActivities;
-      });
-
-      // Sync activity to Firestore
-      await setDoc(doc(db, "activities", newActivity.id), {
-        type: newActivity.type,
-        icon: newActivity.icon,
-        title: newActivity.title,
-        time: newActivity.time,
-        author: newActivity.author,
-        tag: newActivity.tag
-      });
-    } catch (error) {
-      console.error("Delete slip error:", error);
-    }
+      }
+    );
   };
 
   // State for Team Members
@@ -666,54 +713,9 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
-        // Keep fallback
-      }
+      } catch (e) {}
     }
-    return [
-      {
-        id: "1",
-        name: "Alex Rivera",
-        role: "Head Strategist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCmiZUJxcfA2HLcC3ksPOmZ9iFilcu9VxwM1cEZQ0dDxRaMc9wh2q2HXOYnGMZUnKxIIMsgZwWxLuTSTbZU9663BX7vzGD0qa4CBV4oeNR-Q-QyjXLVvnUwzCa3CE13tYbIjRaHWMgyZPbIuo9VC2ipzI3jo8acV4pt47p8zoE4BOfn2fHL5CTVtT0yQlB7ihuN6w5QDziNla4OLDwud_8PPNUYhG7S7tHZoKlnwtfLxn13-CAKb6RUaaZfii5cER2IlC97pGzR2Q"
-      },
-      {
-        id: "2",
-        name: "Sarah Chen",
-        role: "Betting Analyst",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDCyYp7hzyLNJ48AOfaeEBhlHcqZ67PjXLmLQtiNv69fvyB7ovUvq7wfgIctAQpDgp5os_G7ahOPk-nRwMwN0_b-kmleasMXVxcLrXwZWriqmea3bRcJ9DHmKkEznGZd9gG4hFvx9KvMNGklh1sw5KtuEHyg_5-pGtoZVXmUTivK15iEsltP6pkphhR9AFw8P6sSE5ShXhypOiSINjJN7JtxiunqhNQ6ptWAedCeKsVBu3f3xp43-CkhLtf4mhMhCBtZJ8QtDQiLQ"
-      },
-      {
-        id: "3",
-        name: "Marcus Kalu",
-        role: "Data Scientist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAh3Q6DdsxRqWFOLxx1Fze_ytBJKqTytUQS_qPMMB1dYsrP3-iowSYZyaNNS_quFqr_FGvFSJavftj1GnqTpNdgWdrX3qeTeJccOcawp6NyHD0X-srkvYq0qdZxnXZArJiavY8dYqc-G06vzR1JrHwWbvG3K6jlaGPxORdAbbq7Su8LzLgykt6za1KWOqAFnvtEhvgJssPlXahLd8YDACjV6gaV5iZk46aPea5Xn2sWwaa4KCBpwlAelkiPCHAMGFdl11MB97WGVw"
-      },
-      {
-        id: "4",
-        name: "Elena Rodriguez",
-        role: "Community Lead",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuALUubqUDswtVcW0pIMU3998mBvcMGMEYFv8-le3Zeu7VlJWhS1_JHQGyQw60ZRa2tGgQrZHv6iIJs2B00cuXYJgjnliApeCi2Wozx9-xqK2ANUifb-2bxhd4QkU9rNgVTy_erySNIVdUPOUp8uv_C7oXzHRMYnAvO8jrIpO_5MoV8Bez1C0r_csoOheCpKzExcyTNW9RovImIga-CmYB0RvkTHRuD5EwLdiDZ-L4KMNzSxElK6r2KAajylJBZE5RravTyuhYFTVQ"
-      },
-      {
-        id: "5",
-        name: "James Wilson",
-        role: "Support Specialist",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDPS4A9qxg2bJPQpUJKyzLON43UgwP-T5g5XLpWNrC3z846DT9sOia8oqLajZ7_OUd3l4e_gS8lo8031L9KmSRBtKMOPEaekKy2AnlIKtMYFUSr6sLpYEAXUKNtZQpG8jfij94P_cQkwBplHGvAqfyr-yeCJIo49a93kTmYaUZr0Q9O7Mp0x2W5UGMrAJILzXShzsEhWw8IJcyn9yaQpcF_IK7_9i783fRhenn7DlQMHd9AFNLO9zwHSlQGTPYR5SlXOy8M6Wli4A"
-      },
-      {
-        id: "6",
-        name: "Sophie Laurent",
-        role: "Operations Manager",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAC1G7CxYxMK9Hq0nijASDWKWpjbQASp-jyzcvGp1_eE3nY-yF15Y3IswVW_PvGJwWuoRhWD8Pdv-vFvb09xrDvYiraLx8kLhhKfih8-o-0GXbnLgxF5riE-eIumDQGXwPOUYY42taaz3feG3HRTT-2uxtPzxvHpO8Es-6opQe0qyHYiYTDIC5LnU5nkNQ0OMFa77jqKJt2nqJGLkM7mM8UN1duaHDppDII5Sa_VHoYRKSDp9jqjiHZfUAKeajbgnxEHDRgZKFV7w"
-      },
-      {
-        id: "7",
-        name: "David Okafor",
-        role: "Technical Advisor",
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBmMSbnRs98QVjlCvGPlgUkVxxLohGxGsMvZji1zto5CPTwl4A_GvCyVb7WGF3r-R02C7vzVi4QQgdGTaI90qfJvzP5G0ry3C_jYUAGcZbg1ytLM13H22jhWhDx1gjIONmAuHPpWhhTjUPq9aj9ARD2GxIVDpSy88bFlJ8xVBsjnlYTnd-c1drKuQbwqbz6MR3Ge-Ci7gUO5rhuJ9SQkVRLos1TqLXTy_dfKU_sSLTpaffWKEhoWEf6ZBCX9R_IlsoZO4bET14IvA"
-      }
-    ];
+    return [];
   });
 
   // State to manage Member Modals/forms
@@ -725,15 +727,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   // Payment states (fully interactive, saved to localStorage and synchronized)
   const [momoProviderInput, setMomoProviderInput] = useState(() => localStorage.getItem("momo_provider") || "MTN");
-  const [momoNumberInput, setMomoNumberInput] = useState(() => localStorage.getItem("momo_number") || "055 776 5432");
-  const [momoAccountNameInput, setMomoAccountNameInput] = useState(() => localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
-  const [momoReferenceInput, setMomoReferenceInput] = useState(() => localStorage.getItem("momo_reference") || "ADAPT FAMILY");
+  const [momoNumberInput, setMomoNumberInput] = useState(() => localStorage.getItem("momo_number") || "");
+  const [momoAccountNameInput, setMomoAccountNameInput] = useState(() => localStorage.getItem("momo_account_name") || "");
+  const [momoReferenceInput, setMomoReferenceInput] = useState(() => localStorage.getItem("momo_reference") || "");
 
   // Bank details
-  const [bankNameInput, setBankNameInput] = useState(() => localStorage.getItem("bank_name") || "Ecobank Ghana");
-  const [bankAccountNumberInput, setBankAccountNumberInput] = useState(() => localStorage.getItem("bank_account_number") || "1441002345678");
-  const [bankAccountHolderInput, setBankAccountHolderInput] = useState(() => localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
-  const [bankBranchInput, setBankBranchInput] = useState(() => localStorage.getItem("bank_branch") || "Accra Mall Branch");
+  const [bankNameInput, setBankNameInput] = useState(() => localStorage.getItem("bank_name") || "");
+  const [bankAccountNumberInput, setBankAccountNumberInput] = useState(() => localStorage.getItem("bank_account_number") || "");
+  const [bankAccountHolderInput, setBankAccountHolderInput] = useState(() => localStorage.getItem("bank_account_holder") || "");
+  const [bankBranchInput, setBankBranchInput] = useState(() => localStorage.getItem("bank_branch") || "");
 
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
 
@@ -833,13 +835,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const handleCancelPayments = () => {
     setMomoProviderInput(localStorage.getItem("momo_provider") || "MTN");
-    setMomoNumberInput(localStorage.getItem("momo_number") || "055 776 5432");
-    setMomoAccountNameInput(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
-    setMomoReferenceInput(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
-    setBankNameInput(localStorage.getItem("bank_name") || "Ecobank Ghana");
-    setBankAccountNumberInput(localStorage.getItem("bank_account_number") || "1441002345678");
-    setBankAccountHolderInput(localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
-    setBankBranchInput(localStorage.getItem("bank_branch") || "Accra Mall Branch");
+    setMomoNumberInput(localStorage.getItem("momo_number") || "");
+    setMomoAccountNameInput(localStorage.getItem("momo_account_name") || "");
+    setMomoReferenceInput(localStorage.getItem("momo_reference") || "");
+    setBankNameInput(localStorage.getItem("bank_name") || "");
+    setBankAccountNumberInput(localStorage.getItem("bank_account_number") || "");
+    setBankAccountHolderInput(localStorage.getItem("bank_account_holder") || "");
+    setBankBranchInput(localStorage.getItem("bank_branch") || "");
     
     setPaymentSuccessMessage("Changes reverted!");
     setTimeout(() => setPaymentSuccessMessage(null), 2000);
@@ -1179,127 +1181,35 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </div>
               </section>
 
-              {/* Grid of 7 Bento Analytics Cards + 1 Action Card */}
+              {/* Grid of Bento Analytics Cards + 1 Action Card */}
               <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
                 
-                {/* World Cup Card */}
-                <div className="bg-emerald-50/20 border border-emerald-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(16,185,129,0.02)] relative overflow-hidden group hover:shadow-md hover:border-emerald-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-emerald-500 col-span-2 sm:col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-emerald-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">sports_soccer</span>
-                      World Cup
-                    </span>
-                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-emerald-700">{getSlipsCountByCategory("World Cup")}</span>
-                    <span className="text-[10px] text-emerald-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* Bet Builder Card */}
-                <div className="bg-indigo-50/20 border border-indigo-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(99,102,241,0.02)] relative overflow-hidden group hover:shadow-md hover:border-indigo-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-indigo-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-indigo-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">construction</span>
-                      Bet Builder
-                    </span>
-                    <span className="text-indigo-700 bg-indigo-50 border border-indigo-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-indigo-700">{getSlipsCountByCategory("Bet Builder")}</span>
-                    <span className="text-[10px] text-indigo-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* Roll Over Card */}
-                <div className="bg-violet-50/20 border border-violet-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(139,92,246,0.02)] relative overflow-hidden group hover:shadow-md hover:border-violet-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-violet-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-violet-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">cached</span>
-                      Roll Over
-                    </span>
-                    <span className="text-violet-700 bg-violet-50 border border-violet-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-violet-700">{getSlipsCountByCategory("Roll Over")}</span>
-                    <span className="text-[10px] text-violet-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* 1 Cedi Card */}
-                <div className="bg-amber-50/20 border border-amber-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(245,158,11,0.02)] relative overflow-hidden group hover:shadow-md hover:border-amber-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-amber-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-amber-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">payments</span>
-                      1 Cedi
-                    </span>
-                    <span className="text-amber-700 bg-amber-50 border border-amber-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-amber-700">{getSlipsCountByCategory("1 Cedi and a Dream")}</span>
-                    <span className="text-[10px] text-amber-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* Beticology Card */}
-                <div className="bg-rose-50/20 border border-rose-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(244,63,94,0.02)] relative overflow-hidden group hover:shadow-md hover:border-rose-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-rose-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-rose-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">psychology</span>
-                      Beticology
-                    </span>
-                    <span className="text-rose-700 bg-rose-50 border border-rose-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-rose-700">{getSlipsCountByCategory("Beticology")}</span>
-                    <span className="text-[10px] text-rose-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* Long Bets Card */}
-                <div className="bg-teal-50/20 border border-teal-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(20,184,166,0.02)] relative overflow-hidden group hover:shadow-md hover:border-teal-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-teal-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-teal-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">hourglass_empty</span>
-                      Long Bets
-                    </span>
-                    <span className="text-teal-700 bg-teal-50 border border-teal-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-teal-700">{getSlipsCountByCategory("General / Long Bets")}</span>
-                    <span className="text-[10px] text-teal-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
-
-                {/* Engine Room Card */}
-                <div className="bg-sky-50/20 border border-sky-200/80 rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(56,189,248,0.02)] relative overflow-hidden group hover:shadow-md hover:border-sky-400/60 transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-sky-500 col-span-1">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-                    <span className="font-sans text-[10px] font-bold tracking-wider text-sky-800 uppercase flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined text-xs">settings</span>
-                      Engine Room
-                    </span>
-                    <span className="text-sky-700 bg-sky-50 border border-sky-200/50 font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                      Active
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <span className="text-3xl font-extrabold tracking-tight text-sky-700">{getSlipsCountByCategory("Engine Room")}</span>
-                    <span className="text-[10px] text-sky-600/80 font-semibold uppercase tracking-wider mt-1">Booking Codes</span>
-                  </div>
-                </div>
+                {/* Dynamically mapped Category Cards */}
+                {slipCategories.map((cat, index) => {
+                  const style = getCategoryStyles(index);
+                  const count = getSlipsCountByCategory(cat.name);
+                  const isWorldCup = cat.name.toLowerCase() === "world cup";
+                  return (
+                    <div 
+                      key={cat.id || cat.name} 
+                      className={`${style.bg} border ${style.border} rounded-[20px] p-4 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.01)] relative overflow-hidden group hover:shadow-md transition-all duration-300 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 ${style.line} ${isWorldCup ? "col-span-2 sm:col-span-1" : "col-span-1"}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+                        <span className={`font-sans text-[10px] font-bold tracking-wider ${style.text} uppercase flex items-center gap-1 shrink-0`}>
+                          <span className="material-symbols-outlined text-xs">{cat.icon || "receipt_long"}</span>
+                          {cat.name}
+                        </span>
+                        <span className={`${style.countText} ${style.labelBg} border font-sans text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0`}>
+                          {cat.status || "Active"}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-col">
+                        <span className={`text-3xl font-extrabold tracking-tight ${style.countText}`}>{count}</span>
+                        <span className={`text-[10px] ${style.subText} font-semibold uppercase tracking-wider mt-1`}>Booking Codes</span>
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {/* Quick Actions Card */}
                 <div className="bg-neutral-900 border border-neutral-850 rounded-[20px] p-4 sm:p-5 flex flex-col justify-between shadow-lg relative overflow-hidden text-white col-span-2 sm:col-span-1">
@@ -1756,56 +1666,112 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 
                 {/* Section 1: Manage Categories (Bento Style) - lg:col-span-7 */}
                 <section className="lg:col-span-7 flex flex-col gap-5 w-full">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="font-display text-base sm:text-lg font-extrabold text-[#1a1c1d] flex items-center gap-2.5">
-                      <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 sm:p-2 rounded-xl text-lg font-bold">category</span>
-                      Manage Categories
-                    </h2>
-                    
-                    {!isNewCategoryOpen ? (
-                      <button 
-                        onClick={() => setIsNewCategoryOpen(true)}
-                        className="bg-[#f3c623] text-black hover:bg-[#ebd018] px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer w-full sm:w-auto justify-center"
-                      >
-                        <span className="material-symbols-outlined text-base">add_circle</span>
-                        Create New Category
-                      </button>
-                    ) : (
-                      <div className="flex gap-2 w-full sm:w-auto">
-                        <input
-                          type="text"
-                          value={categoryFormName}
-                          onChange={(e) => setCategoryFormName(e.target.value)}
-                          placeholder="Category Name"
-                          className="bg-white border border-neutral-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#f3c623] flex-1 sm:w-48"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!categoryFormName.trim()) return;
-                            const newCat = {
-                              id: Date.now().toString(),
-                              name: categoryFormName.trim(),
-                              slipsCount: 0,
-                              status: "Active"
-                            };
-                            saveSlipCategories([...slipCategories, newCat]);
-                            setCategoryFormName("");
-                            setIsNewCategoryOpen(false);
-                            alert(`Category "${newCat.name}" created successfully!`);
-                          }}
-                          className="bg-[#f3c623] text-black hover:bg-[#ebd018] px-3 py-2 rounded-xl font-bold text-xs cursor-pointer"
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <h2 className="font-display text-base sm:text-lg font-extrabold text-[#1a1c1d] flex items-center gap-2.5">
+                        <span className="material-symbols-outlined text-black bg-[#f3c623] p-1.5 sm:p-2 rounded-xl text-lg font-bold">category</span>
+                        Manage Categories
+                      </h2>
+                      
+                      {!isNewCategoryOpen && (
+                        <button 
+                          onClick={() => setIsNewCategoryOpen(true)}
+                          className="bg-[#f3c623] text-black hover:bg-[#ebd018] px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer w-full sm:w-auto justify-center"
                         >
-                          Save
+                          <span className="material-symbols-outlined text-base">add_circle</span>
+                          Create New Category
                         </button>
-                        <button
-                          onClick={() => {
-                            setCategoryFormName("");
-                            setIsNewCategoryOpen(false);
-                          }}
-                          className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 px-3 py-2 rounded-xl font-bold text-xs cursor-pointer"
-                        >
-                          Cancel
-                        </button>
+                      )}
+                    </div>
+
+                    {isNewCategoryOpen && (
+                      <div className="flex flex-col gap-3 w-full bg-neutral-50/50 border border-neutral-200/80 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+                          <div className="flex-1 w-full">
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Category Name</label>
+                            <input
+                              type="text"
+                              value={categoryFormName}
+                              onChange={(e) => {
+                                const name = e.target.value;
+                                setCategoryFormName(name);
+                                const suggested = autoSelectIconByName(name);
+                                setCategoryFormIcon(suggested);
+                              }}
+                              placeholder="e.g. Rollover, Basketball, La Liga..."
+                              className="w-full bg-white border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#f3c623] font-medium"
+                            />
+                          </div>
+                          
+                          <div className="flex gap-2 shrink-0 w-full sm:w-auto">
+                            <button
+                              onClick={() => {
+                                if (!categoryFormName.trim()) {
+                                  alert("Please enter a category name.");
+                                  return;
+                                }
+                                const newCat = {
+                                  id: Date.now().toString(),
+                                  name: categoryFormName.trim(),
+                                  icon: categoryFormIcon,
+                                  slipsCount: 0,
+                                  status: "Active"
+                                };
+                                saveSlipCategories([...slipCategories, newCat]);
+                                setCategoryFormName("");
+                                setCategoryFormIcon("receipt_long");
+                                setIsNewCategoryOpen(false);
+                                alert(`Category "${newCat.name}" created successfully with icon "${categoryFormIcon}"!`);
+                              }}
+                              className="bg-[#f3c623] text-black hover:bg-[#ebd018] px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer flex-1 sm:flex-initial"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCategoryFormName("");
+                                setCategoryFormIcon("receipt_long");
+                                setIsNewCategoryOpen(false);
+                              }}
+                              className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer flex-1 sm:flex-initial"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Preferred Icon Selection Section */}
+                        <div className="mt-2 pt-2 border-t border-neutral-200/50">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+                              Select Icon (Suggested automatically)
+                            </span>
+                            <span className="text-[10px] font-semibold text-[#8f7200] bg-[#f3c623]/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              Active: <span className="material-symbols-outlined text-sm leading-none">{categoryFormIcon}</span> {categoryFormIcon}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-6 sm:grid-cols-9 gap-1.5 p-2 bg-white rounded-xl border border-neutral-200/60 max-h-32 overflow-y-auto">
+                            {AVAILABLE_ICONS.map((iconName) => {
+                              const isSelected = categoryFormIcon === iconName;
+                              return (
+                                <button
+                                  key={iconName}
+                                  type="button"
+                                  onClick={() => setCategoryFormIcon(iconName)}
+                                  className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all ${
+                                    isSelected 
+                                      ? "bg-neutral-900 text-[#f3c623] scale-105 border-neutral-900 shadow-sm" 
+                                      : "bg-neutral-50 text-neutral-600 hover:bg-neutral-100 border-neutral-200/50"
+                                  } border`}
+                                  title={iconName}
+                                >
+                                  <span className="material-symbols-outlined text-base">{iconName}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1825,7 +1791,24 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <tbody className="divide-y divide-neutral-100 text-[#1a1c1d] font-medium">
                           {slipCategories.map((cat) => (
                             <tr key={cat.id} className="hover:bg-neutral-50/40 transition-colors">
-                              <td className="px-5 py-4 font-bold text-neutral-800">{cat.name}</td>
+                              <td className="px-5 py-4 font-bold text-neutral-800">
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined text-sm bg-neutral-100 p-1.5 rounded-md text-neutral-600 shrink-0">
+                                    {cat.icon || "receipt_long"}
+                                  </span>
+                                  {editingCategoryId === cat.id ? (
+                                    <input
+                                      type="text"
+                                      value={editingCategoryName}
+                                      onChange={(e) => setEditingCategoryName(e.target.value)}
+                                      className="bg-neutral-50 border border-neutral-300 rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#f3c623] w-full max-w-[150px]"
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <span className="truncate">{toTitleCase(cat.name)}</span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="px-5 py-4 text-neutral-500 font-semibold">{cat.slipsCount}</td>
                               <td className="px-5 py-4">
                                 <button
@@ -1849,31 +1832,57 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                               </td>
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => {
-                                      const newName = prompt("Enter new name for category:", cat.name);
-                                      if (newName && newName.trim()) {
-                                        const updated = slipCategories.map(c => c.id === cat.id ? { ...c, name: newName.trim() } : c);
-                                        saveSlipCategories(updated);
-                                      }
-                                    }}
-                                    className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-950 transition-colors"
-                                    title="Rename Category"
-                                  >
-                                    <span className="material-symbols-outlined text-sm">edit</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (confirm(`Are you sure you want to delete the category "${cat.name}"?`)) {
-                                        const updated = slipCategories.filter(c => c.id !== cat.id);
-                                        saveSlipCategories(updated);
-                                      }
-                                    }}
-                                    className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-[#ba1a1a] transition-colors"
-                                    title="Delete Category"
-                                  >
-                                    <span className="material-symbols-outlined text-sm">delete</span>
-                                  </button>
+                                  {editingCategoryId === cat.id ? (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          if (editingCategoryName.trim()) {
+                                            const updated = slipCategories.map(c => 
+                                              c.id === cat.id ? { ...c, name: editingCategoryName.trim() } : c
+                                            );
+                                            saveSlipCategories(updated);
+                                            setEditingCategoryId(null);
+                                            showAlert("Updated", "Category renamed successfully!", "success");
+                                          }
+                                        }}
+                                        className="p-1.5 rounded-lg hover:bg-neutral-100 text-green-600 hover:text-green-700 transition-colors"
+                                        title="Save Name"
+                                      >
+                                        <span className="material-symbols-outlined text-sm font-bold">check</span>
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingCategoryId(null)}
+                                        className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors"
+                                        title="Cancel"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">close</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditingCategoryId(cat.id);
+                                          setEditingCategoryName(cat.name);
+                                        }}
+                                        className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-950 transition-colors"
+                                        title="Rename Category"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          const updated = slipCategories.filter(c => c.id !== cat.id);
+                                          saveSlipCategories(updated);
+                                          showAlert("Deleted", `Successfully deleted category "${cat.name}"`, "success");
+                                        }}
+                                        className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-[#ba1a1a] transition-colors"
+                                        title="Delete Category"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -2060,7 +2069,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                       <td className="py-3 px-4 font-mono font-bold text-neutral-800">{slip.bookingCode}</td>
                                       <td className="py-3 px-4">
                                         <span className="bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                                          {slip.category}
+                                          {toTitleCase(slip.category)}
                                         </span>
                                       </td>
                                       <td className="py-3 px-4 text-center font-medium text-neutral-600">{slip.matches} Matches</td>
@@ -2107,7 +2116,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                       {slip.bookingCode}
                                     </span>
                                     <span className="bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                                      {slip.category}
+                                      {toTitleCase(slip.category)}
                                     </span>
                                   </div>
                                   

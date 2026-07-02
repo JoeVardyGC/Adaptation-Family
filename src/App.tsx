@@ -83,6 +83,11 @@ const EXPERTS = [
   }
 ];
 
+const toTitleCase = (str: string) => {
+  if (!str) return str;
+  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
@@ -102,15 +107,15 @@ export default function App() {
 
   // Synchronized payment settings
   const [momoProvider, setMomoProvider] = useState(() => localStorage.getItem("momo_provider") || "MTN");
-  const [momoAccountName, setMomoAccountName] = useState(() => localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
-  const [momoNumber, setMomoNumber] = useState(() => localStorage.getItem("momo_number") || "055 776 5432");
-  const [momoReference, setMomoReference] = useState(() => localStorage.getItem("momo_reference") || "ADAPT FAMILY");
+  const [momoAccountName, setMomoAccountName] = useState(() => localStorage.getItem("momo_account_name") || "");
+  const [momoNumber, setMomoNumber] = useState(() => localStorage.getItem("momo_number") || "");
+  const [momoReference, setMomoReference] = useState(() => localStorage.getItem("momo_reference") || "");
 
   // Bank details
-  const [bankName, setBankName] = useState(() => localStorage.getItem("bank_name") || "Ecobank Ghana");
-  const [bankAccountNumber, setBankAccountNumber] = useState(() => localStorage.getItem("bank_account_number") || "1441002345678");
-  const [bankAccountHolder, setBankAccountHolder] = useState(() => localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
-  const [bankBranch, setBankBranch] = useState(() => localStorage.getItem("bank_branch") || "Accra Mall Branch");
+  const [bankName, setBankName] = useState(() => localStorage.getItem("bank_name") || "");
+  const [bankAccountNumber, setBankAccountNumber] = useState(() => localStorage.getItem("bank_account_number") || "");
+  const [bankAccountHolder, setBankAccountHolder] = useState(() => localStorage.getItem("bank_account_holder") || "");
+  const [bankBranch, setBankBranch] = useState(() => localStorage.getItem("bank_branch") || "");
 
   const [publicTeamMembers, setPublicTeamMembers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -118,8 +123,9 @@ export default function App() {
 
   // Compute dynamic CATEGORIES structure to match original template expectation and adapt to live changes
   const CATEGORIES: Category[] = categories.map(cat => {
+    const titleCasedName = toTitleCase(cat.name);
     const ticketsForCat = slips
-      .filter(s => s.category === cat.name)
+      .filter(s => toTitleCase(s.category) === titleCasedName)
       .map(s => {
         const rawOdds = s.odds || "1.00";
         const rawMatches = s.matches;
@@ -136,15 +142,15 @@ export default function App() {
         }
         return {
           id: s.id,
-          category: s.category,
+          category: titleCasedName,
           matches: formattedMatches,
           odds: rawOdds,
-          bookingCode: s.bookingCode || `AF-${cat.name.replace(/\s+/g, '').substring(0,3).toUpperCase()}-${rawOdds.replace('.', '')}`,
+          bookingCode: s.bookingCode || `AF-${titleCasedName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-${rawOdds.replace('.', '')}`,
           isHighOdds: parseFloat(rawOdds) >= 100
         };
       });
     return {
-      name: cat.name,
+      name: titleCasedName,
       icon: cat.icon || "receipt_long",
       matches: ticketsForCat.length > 0 ? ticketsForCat[0].matches : "0 Matches",
       tickets: ticketsForCat,
@@ -154,57 +160,34 @@ export default function App() {
 
   useEffect(() => {
     // 1. Instantly load offline/local storage fallbacks for immediate responsiveness
-    setMomoProvider(localStorage.getItem("momo_provider") || "MTN");
-    setMomoAccountName(localStorage.getItem("momo_account_name") || "ADAPTATION FAMILY");
-    setMomoNumber(localStorage.getItem("momo_number") || "055 776 5432");
-    setMomoReference(localStorage.getItem("momo_reference") || "ADAPT FAMILY");
-    setBankName(localStorage.getItem("bank_name") || "Ecobank Ghana");
-    setBankAccountNumber(localStorage.getItem("bank_account_number") || "1441002345678");
-    setBankAccountHolder(localStorage.getItem("bank_account_holder") || "ADAPTATION FAMILY");
-    setBankBranch(localStorage.getItem("bank_branch") || "Accra Mall Branch");
+    setMomoProvider(localStorage.getItem("momo_provider") || "");
+    setMomoAccountName(localStorage.getItem("momo_account_name") || "");
+    setMomoNumber(localStorage.getItem("momo_number") || "");
+    setMomoReference(localStorage.getItem("momo_reference") || "");
+    setBankName(localStorage.getItem("bank_name") || "");
+    setBankAccountNumber(localStorage.getItem("bank_account_number") || "");
+    setBankAccountHolder(localStorage.getItem("bank_account_holder") || "");
+    setBankBranch(localStorage.getItem("bank_branch") || "");
 
     const localCats = localStorage.getItem("adaptation_slip_categories");
     if (localCats) {
       try { setCategories(JSON.parse(localCats)); } catch (e) {}
     } else {
-      const defaultCats = [
-        { id: "1", name: "World Cup", icon: "sports_soccer", status: "Active" },
-        { id: "2", name: "Bet Builder", icon: "construction", status: "Active" },
-        { id: "3", name: "Roll Over", icon: "cached", status: "Active" },
-        { id: "4", name: "1 Cedi and a Dream", icon: "payments", status: "Active" },
-        { id: "5", name: "Beticology", icon: "psychology", status: "Active" },
-        { id: "6", name: "General / Long Bets", icon: "hourglass_empty", status: "Active" },
-        { id: "7", name: "Engine Room", icon: "settings", status: "Active" }
-      ];
-      setCategories(defaultCats);
-      localStorage.setItem("adaptation_slip_categories", JSON.stringify(defaultCats));
+      setCategories([]);
     }
 
     const localSlips = localStorage.getItem("adaptation_slips_list");
     if (localSlips) {
       try { setSlips(JSON.parse(localSlips)); } catch (e) {}
     } else {
-      const defaultSlips = [
-        { id: "wc-1", category: "World Cup", matches: "9 Matches", odds: "12.40", bookingCode: "AF-WOR-1240", dateUploaded: "Jun 30, 2026" },
-        { id: "wc-2", category: "World Cup", matches: "9 Matches", odds: "13.40", bookingCode: "AF-WOR-1340", dateUploaded: "Jun 30, 2026" },
-        { id: "wc-3", category: "World Cup", matches: "9 Matches", odds: "14.40", bookingCode: "AF-WOR-1440", dateUploaded: "Jun 30, 2026" },
-        { id: "wc-4", category: "World Cup", matches: "9 Matches", odds: "15.40", bookingCode: "AF-WOR-1540", dateUploaded: "Jun 30, 2026" },
-        { id: "wc-5", category: "World Cup", matches: "9 Matches", odds: "16.40", bookingCode: "AF-WOR-1640", dateUploaded: "Jun 30, 2026" }
-      ];
-      setSlips(defaultSlips);
-      localStorage.setItem("adaptation_slips_list", JSON.stringify(defaultSlips));
+      setSlips([]);
     }
 
     const localTeam = localStorage.getItem("adaptation_team_members");
     if (localTeam) {
       try { setPublicTeamMembers(JSON.parse(localTeam)); } catch (e) {}
     } else {
-      const defaultTeam = [
-        { id: "1", name: "Alex Rivera", role: "Head Strategist", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCmiZUJxcfA2HLcC3ksPOmZ9iFilcu9VxwM1cEZQ0dDxRaMc9wh2q2HXOYnGMZUnKxIIMsgZwWxLuTSTbZU9663BX7vzGD0qa4CBV4oeNR-Q-QyjXLVvnUwzCa3CE13tYbIjRaHWMgyZPbIuo9VC2ipzI3jo8acV4pt47p8zoE4BOfn2fHL5CTVtT0yQlB7ihuN6w5QDziNla4OLDwud_8PPNUYhG7S7tHZoKlnwtfLxn13-CAKb6RUaaZfii5cER2IlC97pGzR2Q" },
-        { id: "2", name: "Sarah Chen", role: "Betting Analyst", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDCyYp7hzyLNJ48AOfaeEBhlHcqZ67PjXLmLQtiNv69fvyB7ovUvq7wfgIctAQpDgp5os_G7ahOPk-nRwMwN0_b-kmleasMXVxcLrXwZWriqmea3bRcJ9DHmKkEznGZd9gG4hFvx9KvMNGklh1sw5KtuEHyg_5-pGtoZVXmUTivK15iEsltP6pkphhR9AFw8P6sSE5ShXhypOiSINjJN7JtxiunqhNQ6ptWAedCeKsVBu3f3xp43-CkhLtf4mhMhCBtZJ8QtDQiLQ" }
-      ];
-      setPublicTeamMembers(defaultTeam);
-      localStorage.setItem("adaptation_team_members", JSON.stringify(defaultTeam));
+      setPublicTeamMembers([]);
     }
 
     // 2. Setup real-time listeners to Firestore for live data synchronization
@@ -238,23 +221,41 @@ export default function App() {
     const unsubPayments = onSnapshot(doc(db, "payment_settings", "global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setMomoProvider(data.momoProvider || "MTN");
-        setMomoAccountName(data.momoAccountName || "ADAPTATION FAMILY");
-        setMomoNumber(data.momoNumber || "055 776 5432");
-        setMomoReference(data.momoReference || "ADAPT FAMILY");
-        setBankName(data.bankName || "Ecobank Ghana");
-        setBankAccountNumber(data.bankAccountNumber || "1441002345678");
-        setBankAccountHolder(data.bankAccountHolder || "ADAPTATION FAMILY");
-        setBankBranch(data.bankBranch || "Accra Mall Branch");
+        setMomoProvider(data.momoProvider || "");
+        setMomoAccountName(data.momoAccountName || "");
+        setMomoNumber(data.momoNumber || "");
+        setMomoReference(data.momoReference || "");
+        setBankName(data.bankName || "");
+        setBankAccountNumber(data.bankAccountNumber || "");
+        setBankAccountHolder(data.bankAccountHolder || "");
+        setBankBranch(data.bankBranch || "");
         
-        localStorage.setItem("momo_provider", data.momoProvider || "MTN");
-        localStorage.setItem("momo_account_name", data.momoAccountName || "ADAPTATION FAMILY");
-        localStorage.setItem("momo_number", data.momoNumber || "055 776 5432");
-        localStorage.setItem("momo_reference", data.momoReference || "ADAPT FAMILY");
-        localStorage.setItem("bank_name", data.bankName || "Ecobank Ghana");
-        localStorage.setItem("bank_account_number", data.bankAccountNumber || "1441002345678");
-        localStorage.setItem("bank_account_holder", data.bankAccountHolder || "ADAPTATION FAMILY");
-        localStorage.setItem("bank_branch", data.bankBranch || "Accra Mall Branch");
+        localStorage.setItem("momo_provider", data.momoProvider || "");
+        localStorage.setItem("momo_account_name", data.momoAccountName || "");
+        localStorage.setItem("momo_number", data.momoNumber || "");
+        localStorage.setItem("momo_reference", data.momoReference || "");
+        localStorage.setItem("bank_name", data.bankName || "");
+        localStorage.setItem("bank_account_number", data.bankAccountNumber || "");
+        localStorage.setItem("bank_account_holder", data.bankAccountHolder || "");
+        localStorage.setItem("bank_branch", data.bankBranch || "");
+      } else {
+        setMomoProvider("");
+        setMomoAccountName("");
+        setMomoNumber("");
+        setMomoReference("");
+        setBankName("");
+        setBankAccountNumber("");
+        setBankAccountHolder("");
+        setBankBranch("");
+
+        localStorage.setItem("momo_provider", "");
+        localStorage.setItem("momo_account_name", "");
+        localStorage.setItem("momo_number", "");
+        localStorage.setItem("momo_reference", "");
+        localStorage.setItem("bank_name", "");
+        localStorage.setItem("bank_account_number", "");
+        localStorage.setItem("bank_account_holder", "");
+        localStorage.setItem("bank_branch", "");
       }
     }, (err) => console.log("Firestore loaded offline/cached values", err));
 
@@ -487,7 +488,7 @@ export default function App() {
             </a>
 
             <motion.button 
-              onClick={() => setIsJoinModalOpen(true)}
+              onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")}
               whileHover={{ 
                 scale: 1.05,
                 rotate: [0, -1, 1, -1, 1, 0],
@@ -648,7 +649,7 @@ export default function App() {
             <div className="flex flex-col gap-sm pt-4 border-t border-outline-variant">
               <button 
                 onClick={() => {
-                  setIsJoinModalOpen(true);
+                  window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer");
                   setIsMobileNavOpen(false);
                 }}
                 className="w-full bg-primary-container text-on-primary-container font-label-lg text-label-lg py-3 px-4 rounded-xl hover:opacity-90 transition-opacity flex justify-center items-center gap-xs shadow-md font-normal cursor-pointer"
@@ -743,90 +744,102 @@ export default function App() {
                   </p>
                 </div>
 
-                {CATEGORIES.map((category) => (
-                  <section key={category.name} className="flex flex-col gap-4">
-                    <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
-                      <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-bold flex items-center gap-2 portrait-category-title" style={{ fontSize: '18px' }}>
-                        <span className="material-symbols-outlined text-primary-container bg-black p-1 rounded text-lg sm:text-xl">
-                          {category.icon}
-                        </span>
-                        {category.name}
-                      </h3>
-                      <button 
-                        onClick={() => {
-                          setActiveView('booking-codes');
-                          setSelectedCategoryTab(category.name);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className="hidden sm:block portrait-hide text-xs sm:text-sm text-on-surface-variant hover:text-primary-container transition-colors font-normal uppercase tracking-wider portrait-view-more-btn cursor-pointer"
-                      >
-                        View More →
-                      </button>
+                 {CATEGORIES.length === 0 ? (
+                  <div className="bg-gradient-to-br from-surface-container-low via-surface-container-low/95 to-surface-container-lowest border border-outline-variant/40 rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4.5 shadow-md hover:shadow-lg transition-all duration-300 my-6">
+                    <div className="w-14 h-14 rounded-full bg-primary-container/25 text-[#ebd018] flex items-center justify-center animate-pulse border border-primary-container/35 shadow-sm">
+                      <span className="material-symbols-outlined text-3xl">receipt_long</span>
                     </div>
+                    <h4 className="text-base sm:text-lg font-extrabold text-on-surface tracking-tight">No slips available yet</h4>
+                    <p className="text-xs sm:text-sm text-on-surface-variant max-w-sm leading-relaxed font-medium">
+                      Our analysts are currently working on high-performance picks. Check back shortly for premium betting slips!
+                    </p>
+                  </div>
+                ) : (
+                  CATEGORIES.map((category) => (
+                    <section key={category.name} className="flex flex-col gap-4">
+                      <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
+                        <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-bold flex items-center gap-2 portrait-category-title" style={{ fontSize: '18px' }}>
+                          <span className="material-symbols-outlined text-primary-container bg-black p-1 rounded text-lg sm:text-xl">
+                            {category.icon}
+                          </span>
+                          {category.name}
+                        </h3>
+                        <button 
+                          onClick={() => {
+                            setActiveView('booking-codes');
+                            setSelectedCategoryTab(category.name);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="hidden sm:block portrait-hide text-xs sm:text-sm text-on-surface-variant hover:text-primary-container transition-colors font-normal uppercase tracking-wider portrait-view-more-btn cursor-pointer"
+                        >
+                          View More →
+                        </button>
+                      </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 px-1 py-1">
-                      {category.tickets.slice(0, 5).map((ticket) => {
-                        const isCopied = !!copiedStates[ticket.id];
-                        return (
-                          <div 
-                            key={ticket.id} 
-                            className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
-                          >
-                            <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
-                              <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
-                                {ticket.category}
-                              </span>
-                              <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
-                                {ticket.matches}
-                              </span>
-                            </div>
-
-                            <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2 px-1 text-center select-all">
-                              <span className="slip-code-text text-on-surface tracking-wider">
-                                {ticket.bookingCode}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between items-baseline py-0.5 sm:py-1">
-                              <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
-                              <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
-                                {ticket.odds}
-                              </span>
-                            </div>
-
-                            <button 
-                              onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
-                              className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
-                                isCopied 
-                                  ? "bg-emerald-500 text-white hover:opacity-100" 
-                                  : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
-                              }`}
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 px-1 py-1">
+                        {category.tickets.slice(0, 5).map((ticket) => {
+                          const isCopied = !!copiedStates[ticket.id];
+                          return (
+                            <div 
+                              key={ticket.id} 
+                              className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
                             >
-                              <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
-                                {isCopied ? "check" : "content_copy"}
-                              </span> 
-                              {isCopied ? "Copied!" : "Copy Slip"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                              <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
+                                <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
+                                  {ticket.category}
+                                </span>
+                                <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
+                                  {ticket.matches}
+                                </span>
+                              </div>
 
-                    {/* Mobile/Portrait view: View More button placed after the last card */}
-                    <div className="hidden portrait-show-block mt-2">
-                      <button 
-                        onClick={() => {
-                          setActiveView('booking-codes');
-                          setSelectedCategoryTab(category.name);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className="w-full py-2.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface hover:text-primary-container font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all border border-surface-container text-center flex justify-center items-center gap-1.5 portrait-view-more-btn cursor-pointer"
-                      >
-                        View More {category.name} →
-                      </button>
-                    </div>
-                  </section>
-                ))}
+                              <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2 px-1 text-center select-all">
+                                <span className="slip-code-text text-on-surface tracking-wider">
+                                  {ticket.bookingCode}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-baseline py-0.5 sm:py-1">
+                                <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
+                                <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
+                                  {ticket.odds}
+                                </span>
+                              </div>
+
+                              <button 
+                                onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
+                                className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
+                                  isCopied 
+                                    ? "bg-emerald-500 text-white hover:opacity-100" 
+                                    : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
+                                  {isCopied ? "check" : "content_copy"}
+                                </span> 
+                                {isCopied ? "Copied!" : "Copy Slip"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Mobile/Portrait view: View More button placed after the last card */}
+                      <div className="hidden portrait-show-block mt-2">
+                        <button 
+                          onClick={() => {
+                            setActiveView('booking-codes');
+                            setSelectedCategoryTab(category.name);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="w-full py-2.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface hover:text-primary-container font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all border border-surface-container text-center flex justify-center items-center gap-1.5 portrait-view-more-btn cursor-pointer"
+                        >
+                          View More {category.name} →
+                        </button>
+                      </div>
+                    </section>
+                  ))
+                )}
               </div>
 
               {/* Support/Donate Call to Action */}
@@ -867,41 +880,53 @@ export default function App() {
                 </div>
 
                 {/* Custom structured grid based on the uploaded layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
-                  {(publicTeamMembers && publicTeamMembers.length > 0 ? publicTeamMembers : EXPERTS).map((expert) => {
-                    const imageUrl = expert.image || expert.img;
-                    return (
-                      <div 
-                        key={expert.id || expert.name} 
-                        className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
-                      >
-                        {/* Background Image */}
-                        <img 
-                          src={imageUrl} 
-                          alt={expert.name} 
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
-                          }}
-                        />
-                        
-                        {/* Dark overlay gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
-                        
-                        {/* Overlay content at bottom */}
-                        <div className="relative z-20 p-5 flex flex-col text-left">
-                          <h4 className="text-lg font-bold text-white leading-tight font-sans tracking-tight">
-                            {expert.name}
-                          </h4>
-                          <p className="text-xs sm:text-sm text-neutral-300 font-light mt-0.5 opacity-90">
-                            {expert.role}
-                          </p>
+                {publicTeamMembers && publicTeamMembers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4.5 max-w-7xl mx-auto w-full px-4">
+                    {publicTeamMembers.map((expert) => {
+                      const imageUrl = expert.image || expert.img;
+                      return (
+                        <div 
+                          key={expert.id || expert.name} 
+                          className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-2xl border border-outline-variant/10 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary-container/40 transition-all duration-500 ease-out cursor-pointer flex flex-col justify-end"
+                        >
+                          {/* Background Image */}
+                          <img 
+                            src={imageUrl} 
+                            alt={expert.name} 
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                            }}
+                          />
+                          
+                          {/* Dark overlay gradient for high readability contrast */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
+                          
+                          {/* Overlay content at bottom with gentle hover lifting */}
+                          <div className="relative z-20 p-5 flex flex-col text-left transition-transform duration-300 ease-out group-hover:translate-y-[-4px]">
+                            <h4 className="text-lg sm:text-xl font-extrabold text-white leading-tight font-sans tracking-tight">
+                              {expert.name}
+                            </h4>
+                            <p className="text-xs sm:text-sm text-neutral-300 font-semibold mt-1 opacity-95">
+                              {expert.role}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-surface-container-low via-surface-container-low/95 to-surface-container-lowest border border-outline-variant/40 rounded-2xl p-8 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-md hover:shadow-lg transition-all duration-300 my-4">
+                    <div className="w-12 h-12 rounded-full bg-primary-container/25 text-[#ebd018] flex items-center justify-center animate-pulse border border-primary-container/35 shadow-sm">
+                      <span className="material-symbols-outlined text-2xl">groups</span>
+                    </div>
+                    <h4 className="text-base font-extrabold text-on-surface tracking-tight">Meet our team soon</h4>
+                    <p className="text-xs sm:text-sm text-on-surface-variant max-w-sm leading-relaxed font-medium">
+                      Our expert profiles are currently being updated in the engine room. Check back soon to meet the team!
+                    </p>
+                  </div>
+                )}
               </section>
 
             </div>
@@ -982,79 +1007,89 @@ export default function App() {
             {/* Categories list grids (showing all 5 tickets per category) */}
             <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 py-8 md:py-12 flex flex-col gap-10 md:gap-16">
               <div className="flex flex-col gap-10 md:gap-16">
-                {CATEGORIES
-                  .filter((category) => selectedCategoryTab === 'All' || category.name === selectedCategoryTab)
-                  .map((category) => (
-                    <section key={category.name} className="flex flex-col gap-5 animate-in fade-in duration-300">
-                      <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
-                        <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-extrabold flex items-center gap-2 portrait-category-title" style={{ fontSize: '21px' }}>
-                          <span className="material-symbols-outlined text-primary-container bg-black p-1.5 rounded-lg text-lg sm:text-xl shadow-md">
-                            {category.icon}
+                {CATEGORIES.length === 0 ? (
+                  <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                    <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">confirmation_number</span>
+                    <h4 className="text-lg font-bold text-on-surface">No booking codes published</h4>
+                    <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                      There are no active categories or booking codes uploaded at the moment. Please check back later.
+                    </p>
+                  </div>
+                ) : (
+                  CATEGORIES
+                    .filter((category) => selectedCategoryTab === 'All' || category.name === selectedCategoryTab)
+                    .map((category) => (
+                      <section key={category.name} className="flex flex-col gap-5 animate-in fade-in duration-300">
+                        <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-extrabold flex items-center gap-2 portrait-category-title" style={{ fontSize: '21px' }}>
+                            <span className="material-symbols-outlined text-primary-container bg-black p-1.5 rounded-lg text-lg sm:text-xl shadow-md">
+                              {category.icon}
+                            </span>
+                            {category.name}
+                          </h3>
+                          <span className="bg-surface-container-low border border-surface-container px-3 py-1 rounded-full text-xs font-bold text-on-surface-variant">
+                            {category.tickets.length} Slips Available
                           </span>
-                          {category.name}
-                        </h3>
-                        <span className="bg-surface-container-low border border-surface-container px-3 py-1 rounded-full text-xs font-bold text-on-surface-variant">
-                          {category.tickets.length} Slips Available
-                        </span>
-                      </div>
+                        </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 px-1 py-1">
-                        {(() => {
-                          const sortedTickets = [...category.tickets];
-                          if (oddsSortOrder === 'asc') {
-                            sortedTickets.sort((a, b) => parseFloat(a.odds) - parseFloat(b.odds));
-                          } else if (oddsSortOrder === 'desc') {
-                            sortedTickets.sort((a, b) => parseFloat(b.odds) - parseFloat(a.odds));
-                          }
-                          return sortedTickets.map((ticket) => {
-                            const isCopied = !!copiedStates[ticket.id];
-                            return (
-                              <div 
-                                key={ticket.id} 
-                                className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
-                              >
-                                <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
-                                  <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
-                                    {ticket.category}
-                                  </span>
-                                  <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
-                                    {ticket.matches}
-                                  </span>
-                                </div>
-
-                                <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2.5 px-1.5 text-center select-all">
-                                  <span className="slip-code-text text-on-surface tracking-wider">
-                                    {ticket.bookingCode}
-                                  </span>
-                                </div>
-
-                                <div className="flex justify-between items-baseline py-0.5 sm:py-1">
-                                  <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
-                                  <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
-                                    {ticket.odds}
-                                  </span>
-                                </div>
-
-                                <button 
-                                  onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
-                                  className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
-                                    isCopied 
-                                      ? "bg-emerald-500 text-white hover:opacity-100" 
-                                      : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
-                                  }`}
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 px-1 py-1">
+                          {(() => {
+                            const sortedTickets = [...category.tickets];
+                            if (oddsSortOrder === 'asc') {
+                              sortedTickets.sort((a, b) => parseFloat(a.odds) - parseFloat(b.odds));
+                            } else if (oddsSortOrder === 'desc') {
+                              sortedTickets.sort((a, b) => parseFloat(b.odds) - parseFloat(a.odds));
+                            }
+                            return sortedTickets.map((ticket) => {
+                              const isCopied = !!copiedStates[ticket.id];
+                              return (
+                                <div 
+                                  key={ticket.id} 
+                                  className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
                                 >
-                                  <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
-                                    {isCopied ? "check" : "content_copy"}
-                                  </span> 
-                                  {isCopied ? "Copied!" : "Copy Slip"}
-                                </button>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </section>
-                  ))}
+                                  <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
+                                    <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
+                                      {ticket.category}
+                                    </span>
+                                    <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
+                                      {ticket.matches}
+                                    </span>
+                                  </div>
+
+                                  <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2.5 px-1.5 text-center select-all">
+                                    <span className="slip-code-text text-on-surface tracking-wider">
+                                      {ticket.bookingCode}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex justify-between items-baseline py-0.5 sm:py-1">
+                                    <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
+                                    <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
+                                      {ticket.odds}
+                                    </span>
+                                  </div>
+
+                                  <button 
+                                    onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
+                                    className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
+                                      isCopied 
+                                        ? "bg-emerald-500 text-white hover:opacity-100" 
+                                        : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
+                                      {isCopied ? "check" : "content_copy"}
+                                    </span> 
+                                    {isCopied ? "Copied!" : "Copy Slip"}
+                                  </button>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </section>
+                    ))
+                )}
               </div>
 
               {/* Back to Home Button */}
@@ -1098,41 +1133,51 @@ export default function App() {
 
             {/* Team Grid */}
             <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
-                {(publicTeamMembers && publicTeamMembers.length > 0 ? publicTeamMembers : EXPERTS).map((expert) => {
-                  const imageUrl = expert.image || expert.img;
-                  return (
-                    <div 
-                      key={expert.id || expert.name} 
-                      className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
-                    >
-                      {/* Background Image */}
-                      <img 
-                        src={imageUrl} 
-                        alt={expert.name} 
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
-                        }}
-                      />
-                      
-                      {/* Dark overlay gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
-                      
-                      {/* Overlay content at bottom */}
-                      <div className="relative z-20 p-5 flex flex-col text-left">
-                        <h4 className="text-lg font-bold text-white leading-tight font-sans tracking-tight">
-                          {expert.name}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-neutral-300 font-light mt-0.5 opacity-90">
-                          {expert.role}
-                        </p>
+              {publicTeamMembers && publicTeamMembers.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
+                  {publicTeamMembers.map((expert) => {
+                    const imageUrl = expert.image || expert.img;
+                    return (
+                      <div 
+                        key={expert.id || expert.name} 
+                        className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
+                      >
+                        {/* Background Image */}
+                        <img 
+                          src={imageUrl} 
+                          alt={expert.name} 
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                          }}
+                        />
+                        
+                        {/* Dark overlay gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent z-10 transition-all duration-300 group-hover:via-black/55"></div>
+                        
+                        {/* Overlay content at bottom */}
+                        <div className="relative z-20 p-5 flex flex-col text-left">
+                          <h4 className="text-lg font-bold text-white leading-tight font-sans tracking-tight">
+                            {expert.name}
+                          </h4>
+                          <p className="text-xs sm:text-sm text-neutral-300 font-light mt-0.5 opacity-90">
+                            {expert.role}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">groups</span>
+                  <h4 className="text-lg font-bold text-on-surface">Meet our team soon</h4>
+                  <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                    Our expert profiles are currently being updated in the engine room. Check back soon to meet the elite team behind the Adaptation Family!
+                  </p>
+                </div>
+              )}
             </section>
 
             {/* Back Call-to-action button */}
@@ -1175,238 +1220,252 @@ export default function App() {
 
             {/* Direct Donation Channels Cards Grid */}
             <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                       {/* Mobile Money Details Card */}
-                <div className="bg-surface-container-lowest border border-[#f3c623]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-[#f3c623] hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3c623]/10 rounded-full blur-2xl"></div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
-                        <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
-                      </div>
-                      <div>
-                        <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
-                        <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
-                      </div>
-                    </div>
-                    {/* Active Provider Logo & Badge Container (LARGE) */}
-                    <div className="shrink-0 flex self-start sm:self-center">
-                      {momoProvider === "MTN" && (
-                        <div className="flex items-center gap-3 px-4 py-2 bg-[#FFCC00]/15 border border-[#FFCC00]/40 rounded-2xl shadow-sm transition-all duration-300">
-                          <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg" 
-                            alt="MTN Logo" 
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-[#8f7200] uppercase tracking-wider leading-none mb-1">Provider</span>
-                            <span className="text-sm font-black text-neutral-900 leading-none">MTN MoMo</span>
-                          </div>
-                        </div>
-                      )}
-                      {momoProvider === "Telecel" && (
-                        <div className="flex items-center gap-3 px-4 py-2 bg-[#E60000]/10 border border-[#E60000]/40 rounded-2xl shadow-sm transition-all duration-300">
-                          <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg" 
-                            alt="Telecel Logo" 
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              // If jpg fails, fallback to the svg path
-                              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-[#E60000] uppercase tracking-wider leading-none mb-1">Provider</span>
-                            <span className="text-sm font-black text-[#E60000] leading-none">Telecel Cash</span>
-                          </div>
-                        </div>
-                      )}
-                      {momoProvider === "AirtelTigo" && (
-                        <div className="flex items-center gap-3 px-4 py-2 bg-[#0056B3]/10 border border-[#0056B3]/40 rounded-2xl shadow-sm transition-all duration-300">
-                          <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png" 
-                            alt="AirtelTigo Logo" 
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              // If main commons path fails, fallback to English Wikipedia fair use path
-                              (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-[#0056B3] uppercase tracking-wider leading-none mb-1">Provider</span>
-                            <span className="text-sm font-black text-[#0056B3] leading-none">AirtelTigo</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-                    Transfer directly to our Mobile Money number using your mobile wallet provider.
+              {!momoNumber && !bankAccountNumber ? (
+                <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-xl mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">volunteer_activism</span>
+                  <h4 className="text-lg font-bold text-on-surface">Donation Channels Offline</h4>
+                  <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                    Our direct support channels are currently undergoing scheduled maintenance. Please check back shortly for updated Mobile Money and Bank transfer details. We appreciate your incredible support!
                   </p>
-
-                  <div className="flex flex-col gap-4">
-                    {/* Recipient Account Name */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Registered Account Name</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">{momoAccountName}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(momoAccountName);
-                            setDonationCopiedText("Account Name Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Account Name"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Mobile Money Number */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">{momoProvider} Mobile Number</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-bold text-on-surface tracking-tight whitespace-nowrap" style={{ fontFamily: '"Montserrat", sans-serif' }}>{momoNumber}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(momoNumber.replace(/\s+/g, ''));
-                            setDonationCopiedText("MoMo Number Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy MoMo Number"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Preferred Reference */}
-                    <div className="bg-[#f3c623]/5 border border-[#f3c623]/20 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider">Required Reference</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-[#8f7200] font-mono">{momoReference}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(momoReference);
-                            setDonationCopiedText("Reference Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-[#f3c623]/20 rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Reference"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                  {/* Mobile Money Details Card */}
+                  {momoNumber ? (
+                    <div className="bg-surface-container-lowest border border-[#f3c623]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-[#f3c623] hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3c623]/10 rounded-full blur-2xl"></div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
+                            <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
+                            <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
+                          </div>
+                        </div>
+                        {/* Active Provider Logo & Badge Container (LARGE) */}
+                        <div className="shrink-0 flex self-start sm:self-center">
+                          {momoProvider === "MTN" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#FFCC00]/15 border border-[#FFCC00]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg" 
+                                alt="MTN Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#8f7200] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-neutral-900 leading-none">MTN MoMo</span>
+                              </div>
+                            </div>
+                          )}
+                          {momoProvider === "Telecel" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#E60000]/10 border border-[#E60000]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg" 
+                                alt="Telecel Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  // If jpg fails, fallback to the svg path
+                                  (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
+                                }}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#E60000] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-[#E60000] leading-none">Telecel Cash</span>
+                              </div>
+                            </div>
+                          )}
+                          {momoProvider === "AirtelTigo" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#0056B3]/10 border border-[#0056B3]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png" 
+                                alt="AirtelTigo Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  // If main commons path fails, fallback to English Wikipedia fair use path
+                                  (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
+                                }}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#0056B3] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-[#0056B3] leading-none">AirtelTigo</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                {/* Bank Details Card (Optional / Secondary) */}
-                <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-neutral-400 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-200/20 rounded-full blur-2xl"></div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-on-surface">
-                      <span className="material-symbols-outlined text-2xl font-bold text-neutral-600">account_balance</span>
-                    </div>
-                    <div>
-                      <span className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Option 2 (Optional)</span>
-                      <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Direct Bank Transfer</h3>
-                    </div>
-                  </div>
+                      <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                        Transfer directly to our Mobile Money number using your mobile wallet provider.
+                      </p>
 
-                  <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-                    Deposit or transfer directly from any local or international bank account.
-                  </p>
+                      <div className="flex flex-col gap-4">
+                        {/* Recipient Account Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Registered Account Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{momoAccountName}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoAccountName);
+                                setDonationCopiedText("Account Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
 
-                  <div className="flex flex-col gap-4">
-                    {/* Bank Name */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Bank Name</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">{bankName}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(bankName);
-                            setDonationCopiedText("Bank Name Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Bank Name"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
+                        {/* Mobile Money Number */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">{momoProvider} Mobile Number</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg sm:text-xl font-bold text-on-surface tracking-tight whitespace-nowrap" style={{ fontFamily: '"Montserrat", sans-serif' }}>{momoNumber}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoNumber.replace(/\s+/g, ''));
+                                setDonationCopiedText("MoMo Number Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy MoMo Number"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Preferred Reference */}
+                        <div className="bg-[#f3c623]/5 border border-[#f3c623]/20 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider">Required Reference</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-[#8f7200] font-mono">{momoReference}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoReference);
+                                setDonationCopiedText("Reference Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-[#f3c623]/20 rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Reference"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ) : null}
 
-                    {/* Account Holder Name */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Holder Name</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">{bankAccountHolder}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(bankAccountHolder);
-                            setDonationCopiedText("Account Name Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Account Name"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
+                  {/* Bank Details Card (Optional / Secondary) */}
+                  {bankAccountNumber ? (
+                    <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-neutral-400 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-200/20 rounded-full blur-2xl"></div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-on-surface">
+                          <span className="material-symbols-outlined text-2xl font-bold text-neutral-600">account_balance</span>
+                        </div>
+                        <div>
+                          <span className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Option 2 (Optional)</span>
+                          <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Direct Bank Transfer</h3>
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                        Deposit or transfer directly from any local or international bank account.
+                      </p>
+
+                      <div className="flex flex-col gap-4">
+                        {/* Bank Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Bank Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-base sm:text-lg font-black text-on-surface">{bankName}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankName);
+                                setDonationCopiedText("Bank Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Bank Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Account Holder Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Holder Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{bankAccountHolder}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankAccountHolder);
+                                setDonationCopiedText("Account Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Account Number */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Number</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{bankAccountNumber}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankAccountNumber);
+                                setDonationCopiedText("Account Number Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Number"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bank Branch */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Branch</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{bankBranch}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankBranch);
+                                setDonationCopiedText("Branch Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Branch"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Account Number */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Number</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{bankAccountNumber}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(bankAccountNumber);
-                            setDonationCopiedText("Account Number Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Account Number"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bank Branch */}
-                    <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Branch</span>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm sm:text-base font-black text-on-surface">{bankBranch}</span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(bankBranch);
-                            setDonationCopiedText("Branch Copied!");
-                            setTimeout(() => setDonationCopiedText(null), 2000);
-                          }}
-                          className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
-                          title="Copy Branch"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
-
-              </div>
+              )}
+            </section>
 
               {/* Toast Feedback for Copied Items */}
               {donationCopiedText && (
@@ -1415,7 +1474,6 @@ export default function App() {
                   <span>{donationCopiedText}</span>
                 </div>
               )}
-            </section>
 
             {/* Back Call-to-action button */}
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-4 flex justify-center">
@@ -1555,7 +1613,7 @@ export default function App() {
                     </a>
                   </li>
                   <li>
-                    <a onClick={() => setIsJoinModalOpen(true)} className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer">Join The Family</a>
+                    <a onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")} className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer">Join The Family</a>
                   </li>
                 </ul>
               </div>
@@ -1642,7 +1700,7 @@ export default function App() {
             </div>
             <button 
               onClick={() => {
-                alert("Awesome! Our support staff will contact you shortly to onboard you into the Adaptation Family elite circle.");
+                window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer");
                 setIsJoinModalOpen(false);
               }}
               className="w-full bg-primary-container text-on-primary-container font-bold py-3 rounded-xl hover:opacity-90 transition-opacity mt-sm shadow-md"

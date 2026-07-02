@@ -23,7 +23,9 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == "abubakarsadikmusah2004@gmail.com" ||
-        (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email)))
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/admins/super-admin) && get(/databases/$(database)/documents/admins/super-admin).data.email == request.auth.token.email)
       );
     }
 
