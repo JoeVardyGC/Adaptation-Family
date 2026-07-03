@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { MessageCircle, Video, ExternalLink, X, Users, Sparkles } from 'lucide-react';
 import { db, auth } from './firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -93,7 +94,7 @@ export default function App() {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'home' | 'booking-codes' | 'team' | 'donate' | 'privacy' | 'terms' | 'login' | 'admin-dashboard'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'booking-codes' | 'team' | 'donate' | 'community' | 'privacy' | 'terms' | 'login' | 'admin-dashboard'>('home');
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('All');
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [donationCopiedText, setDonationCopiedText] = useState<string | null>(null);
@@ -488,13 +489,18 @@ export default function App() {
             </a>
 
             <motion.button 
-              onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")}
+              onClick={() => {
+                setActiveView('community');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               whileHover={{ 
                 scale: 1.05,
                 rotate: [0, -1, 1, -1, 1, 0],
                 transition: { duration: 0.3 }
               }}
-              className="bg-primary-container text-on-primary-container font-normal text-xs lg:text-sm py-2 px-4 rounded-xl hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-1.5 shadow-sm"
+              className={`${
+                activeView === 'community' ? 'bg-on-surface text-amber-400' : 'bg-primary-container text-on-primary-container'
+              } font-normal text-xs lg:text-sm py-2 px-4 rounded-xl hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-1.5 shadow-sm`}
             >
               Join Community
             </motion.button>
@@ -649,8 +655,9 @@ export default function App() {
             <div className="flex flex-col gap-sm pt-4 border-t border-outline-variant">
               <button 
                 onClick={() => {
-                  window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer");
+                  setActiveView('community');
                   setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="w-full bg-primary-container text-on-primary-container font-label-lg text-label-lg py-3 px-4 rounded-xl hover:opacity-90 transition-opacity flex justify-center items-center gap-xs shadow-md font-normal cursor-pointer"
               >
@@ -1491,6 +1498,125 @@ export default function App() {
           </div>
         )}
 
+        {activeView === 'community' && (
+          <div className="w-full flex flex-col bg-surface-bright pb-16 animate-in fade-in duration-300">
+            {/* Hero Section */}
+            <section className="py-12 md:py-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto text-center relative overflow-hidden w-full mt-4">
+              <div className="absolute inset-0 bg-surface-container-low -z-10 rounded-[3rem] opacity-50 transform -skew-y-2 scale-105"></div>
+              <div className="max-w-3xl mx-auto flex flex-col items-center gap-4 relative z-10">
+                <div className="inline-flex items-center gap-2 bg-[#f3c623]/10 px-4 py-2 rounded-full mb-2 border border-[#f3c623]/30">
+                  <span className="w-2 h-2 rounded-full bg-[#f3c623] animate-pulse"></span>
+                  <span className="text-xs font-bold text-[#8f7200] uppercase tracking-wider text-amber-500">JOIN THE FAMILY</span>
+                </div>
+                <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-on-surface font-extrabold tracking-tight leading-tight text-neutral-900">
+                  JOIN OUR <br />
+                  <span className="text-black bg-amber-400 px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
+                    Sports Community
+                  </span>
+                </h2>
+                <p className="text-sm sm:text-base text-neutral-600 max-w-2xl font-normal mt-2 leading-relaxed">
+                  Become a member of a rapidly growing and highly engaged sports betting group. Select your preferred channel below to enter the arena and stay ahead of the game with the ultimate sports analysts network.
+                </p>
+              </div>
+            </section>
+
+            {/* Platform Options */}
+            <section className="py-6 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* WhatsApp Channel Card */}
+                <div 
+                  onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")}
+                  className="group border border-emerald-100 hover:border-emerald-400 bg-emerald-50/20 hover:bg-emerald-50/50 p-6 sm:p-8 rounded-3xl flex flex-col items-center text-center gap-5 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
+                  
+                  <div className="p-3 bg-emerald-500 rounded-2xl group-hover:scale-110 transition-transform shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12.004 2C6.48 2 2 6.48 2 12.004c0 1.832.493 3.548 1.353 5.029L2 22l5.122-1.343a9.96 9.96 0 004.882 1.347c5.524 0 10.004-4.48 10.004-10.004C22.008 6.48 17.528 2 12.004 2zm5.783 14.156c-.247.696-1.228 1.272-1.69 1.316-.45.044-.9.231-2.903-.564-2.56-.995-4.172-3.615-4.298-3.784-.127-.168-1.03-1.368-1.03-2.61s.655-1.848.887-2.09c.231-.243.504-.305.672-.305.168 0 .337.004.484.011.151.007.356-.058.556.425.205.495.702 1.708.763 1.83.061.123.102.266.02.428-.081.163-.122.266-.244.408-.122.143-.257.319-.367.428-.122.122-.249.255-.107.498.143.243.633 1.042 1.36 1.691.936.834 1.725 1.092 1.968 1.214.243.123.385.102.528-.061.142-.163.61-.71.773-.953.163-.243.326-.204.549-.122.224.081 1.424.671 1.668.793.244.122.407.184.468.286.061.102.061.594-.186 1.29z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <h3 className="text-xl font-bold text-neutral-900 group-hover:text-emerald-700 transition-colors">WhatsApp Channel</h3>
+                    <p className="text-sm text-neutral-600 leading-relaxed min-h-[48px]">
+                      Get direct notification of accurate slips, strategy discussion, 24/7 analysis, and stay ahead with direct booking codes!
+                    </p>
+                  </div>
+
+                  <div className="mt-4 w-full bg-emerald-500 text-white font-bold py-3 px-6 rounded-2xl group-hover:bg-emerald-600 transition-colors flex justify-center items-center gap-2 text-sm shadow-sm">
+                    <span>Join WhatsApp Group</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* TikTok Card */}
+                <div 
+                  onClick={() => window.open("https://www.tiktok.com/@adaptation_boom_nation?_r=1&_t=ZN-97j5UJmqIBa", "_blank", "noopener,noreferrer")}
+                  className="group border border-neutral-200 hover:border-neutral-900 bg-neutral-50/20 hover:bg-neutral-100/50 p-6 sm:p-8 rounded-3xl flex flex-col items-center text-center gap-5 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-900/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
+                  
+                  <div className="p-3 bg-black rounded-2xl group-hover:scale-110 transition-transform shadow-md shadow-neutral-900/20 flex items-center justify-center">
+                    <svg className="w-10 h-10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Cyan chromatic aberration offset */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#00f2fe" 
+                        transform="translate(-0.3, -0.3)"
+                      />
+                      {/* Magenta chromatic aberration offset */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#fe0979" 
+                        transform="translate(0.3, 0.3)"
+                      />
+                      {/* White main note */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#ffffff" 
+                      />
+                    </svg>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <h3 className="text-xl font-bold text-neutral-900 group-hover:text-neutral-850 transition-colors">TikTok Community</h3>
+                    <p className="text-sm text-neutral-600 leading-relaxed min-h-[48px]">
+                      Follow us on TikTok to enjoy premier prediction highlights, expert match previews, and dynamic winning formulas.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 w-full bg-neutral-900 text-white font-bold py-3 px-6 rounded-2xl group-hover:bg-black transition-colors flex justify-center items-center gap-2 text-sm shadow-sm">
+                    <span>Follow on TikTok</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Dynamic Family notice */}
+              <div className="mt-8 flex items-center justify-center gap-3 bg-neutral-50 p-4 rounded-2xl border border-neutral-100 text-xs md:text-sm text-neutral-600 max-w-2xl mx-auto">
+                <Users className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <span>Become an active member of our family today and stay ahead with over 90k sports enthusiasts!</span>
+              </div>
+            </section>
+
+            {/* Back Call-to-action button */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-6 flex justify-center">
+              <button 
+                onClick={() => {
+                  setActiveView('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 font-normal text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                BACK TO HOME
+              </button>
+            </div>
+          </div>
+        )}
+
         {activeView === 'privacy' && (
           <PrivacyPolicy 
             onBackToHome={() => {
@@ -1613,7 +1739,15 @@ export default function App() {
                     </a>
                   </li>
                   <li>
-                    <a onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")} className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer">Join The Family</a>
+                    <a 
+                      onClick={() => {
+                        setActiveView('community');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Join The Family
+                    </a>
                   </li>
                 </ul>
               </div>
@@ -1679,47 +1813,6 @@ export default function App() {
         )}
 
       </main>
-
-      {/* Join Community Modal */}
-      {isJoinModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsJoinModalOpen(false)}></div>
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-md w-full p-6 shadow-2xl relative z-10 flex flex-col gap-md">
-            <div className="flex justify-between items-center">
-              <h4 className="text-xl font-bold flex items-center gap-xs">
-                <span className="material-symbols-outlined text-primary-container bg-on-surface p-1 rounded">send</span>
-                Join Adaptation Family
-              </h4>
-              <button 
-                onClick={() => setIsJoinModalOpen(false)}
-                className="text-on-surface-variant hover:text-on-surface cursor-pointer"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <p className="text-sm text-on-surface-variant">
-              Get direct notification of accurate slips, strategy discussion, 24/7 analysis, and stay ahead of the game with the ultimate sports analysts network.
-            </p>
-            <div className="flex flex-col gap-xs mt-xs">
-              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Your Telegram Username / Phone</label>
-              <input 
-                type="text" 
-                placeholder="@username or +233..." 
-                className="w-full bg-surface-container-low border border-surface-container-high rounded-lg p-sm text-sm focus:outline-none focus:border-on-surface"
-              />
-            </div>
-            <button 
-              onClick={() => {
-                window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer");
-                setIsJoinModalOpen(false);
-              }}
-              className="w-full bg-primary-container text-on-primary-container font-bold py-3 rounded-xl hover:opacity-90 transition-opacity mt-sm shadow-md"
-            >
-              Get Instant Access Now
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Donate Modal */}
       {isDonateModalOpen && (
