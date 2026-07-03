@@ -288,6 +288,9 @@ body {
   }
 
   /* Override custom classes and specific sections */
+  .portrait-category-title {
+    font-weight: bold !important;
+  }
   .slip-code-text {
     font-weight: 500 !important;
   }
