@@ -12,7 +12,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
-import { DEFAULT_TEAM_MEMBERS } from './data/teamMembers';
+import { DEFAULT_TEAM_MEMBERS, resolveTeamMemberImage } from './data/teamMembers';
 
 interface Ticket {
   id: string;
@@ -73,7 +73,14 @@ export default function App() {
     if (localTeam) {
       try {
         const parsed = JSON.parse(localTeam);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((m: any) => ({
+            ...m,
+            image: resolveTeamMemberImage(m.name, m.image || m.img),
+            img: resolveTeamMemberImage(m.name, m.image || m.img),
+            role: (m.name || "").toLowerCase().includes("adaptation") ? "Leader" : (m.role === "Leader" ? "Leader" : "Member")
+          }));
+        }
       } catch (e) {}
     }
     return DEFAULT_TEAM_MEMBERS;
@@ -148,7 +155,13 @@ export default function App() {
       try {
         const parsed = JSON.parse(localTeam);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setPublicTeamMembers(parsed);
+          const sanitized = parsed.map((m: any) => ({
+            ...m,
+            image: resolveTeamMemberImage(m.name, m.image || m.img),
+            img: resolveTeamMemberImage(m.name, m.image || m.img),
+            role: (m.name || "").toLowerCase().includes("adaptation") ? "Leader" : (m.role === "Leader" ? "Leader" : "Member")
+          }));
+          setPublicTeamMembers(sanitized);
         } else {
           setPublicTeamMembers(DEFAULT_TEAM_MEMBERS);
         }
@@ -181,7 +194,15 @@ export default function App() {
     const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
       const list: any[] = [];
       snapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        const cleanImage = resolveTeamMemberImage(data.name || "", data.image || data.img);
+        list.push({ 
+          id: doc.id, 
+          ...data,
+          role: (data.name || "").toLowerCase().includes("adaptation") ? "Leader" : (data.role === "Leader" ? "Leader" : "Member"),
+          image: cleanImage,
+          img: cleanImage
+        });
       });
       if (list.length > 0) {
         setPublicTeamMembers(list);
@@ -877,7 +898,7 @@ export default function App() {
                 {publicTeamMembers && publicTeamMembers.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4.5 max-w-7xl mx-auto w-full px-4">
                     {publicTeamMembers.map((expert) => {
-                      const imageUrl = expert.image || expert.img;
+                      const imageUrl = resolveTeamMemberImage(expert.name, expert.image || expert.img);
                       return (
                         <div 
                           key={expert.id || expert.name} 
@@ -890,7 +911,11 @@ export default function App() {
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                              const target = e.target as HTMLImageElement;
+                              const fallback = resolveTeamMemberImage(expert.name);
+                              if (target.src !== fallback && !target.src.endsWith(fallback)) {
+                                target.src = fallback;
+                              }
                             }}
                           />
                           
@@ -1130,7 +1155,7 @@ export default function App() {
               {publicTeamMembers && publicTeamMembers.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
                   {publicTeamMembers.map((expert) => {
-                    const imageUrl = expert.image || expert.img;
+                    const imageUrl = resolveTeamMemberImage(expert.name, expert.image || expert.img);
                     return (
                       <div 
                         key={expert.id || expert.name} 
@@ -1143,7 +1168,11 @@ export default function App() {
                           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           referrerPolicy="no-referrer"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                            const target = e.target as HTMLImageElement;
+                            const fallback = resolveTeamMemberImage(expert.name);
+                            if (target.src !== fallback && !target.src.endsWith(fallback)) {
+                              target.src = fallback;
+                            }
                           }}
                         />
                         

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { db, auth, handleFirestoreError, OperationType } from "../firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { TeamMember, DEFAULT_TEAM_MEMBERS } from "../data/teamMembers";
+import { TeamMember, DEFAULT_TEAM_MEMBERS, resolveTeamMemberImage } from "../data/teamMembers";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -459,7 +459,14 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
       const list: any[] = [];
       snapshot.forEach((docSnap) => {
-        list.push({ id: docSnap.id, ...docSnap.data() });
+        const data = docSnap.data();
+        const cleanImage = resolveTeamMemberImage(data.name || "", data.image);
+        list.push({ 
+          id: docSnap.id, 
+          ...data,
+          role: (data.name || "").toLowerCase().includes("adaptation") ? "Leader" : (data.role === "Leader" ? "Leader" : "Member"),
+          image: cleanImage
+        });
       });
       if (list.length > 0) {
         setTeamMembers(list);
@@ -706,7 +713,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((m: any) => ({
+            ...m,
+            image: resolveTeamMemberImage(m.name, m.image),
+            role: (m.name || "").toLowerCase().includes("adaptation") ? "Leader" : (m.role === "Leader" ? "Leader" : "Member")
+          }));
+        }
       } catch (e) {}
     }
     return DEFAULT_TEAM_MEMBERS;
@@ -1378,7 +1391,11 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             src={member.image} 
                             alt={member.name} 
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                              const target = e.target as HTMLImageElement;
+                              const fallback = resolveTeamMemberImage(member.name);
+                              if (target.src !== fallback && !target.src.endsWith(fallback)) {
+                                target.src = fallback;
+                              }
                             }}
                           />
                         </div>
@@ -2731,10 +2748,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     <div className="w-16 h-16 rounded-2xl overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 relative shadow-sm group">
                       <img 
                         className="w-full h-full object-cover" 
-                        src={memberFormImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"} 
+                        src={memberFormImage || resolveTeamMemberImage(memberFormName)} 
                         alt="Preview" 
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                          (e.target as HTMLImageElement).src = resolveTeamMemberImage(memberFormName);
                         }}
                       />
                     </div>
