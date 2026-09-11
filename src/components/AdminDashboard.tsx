@@ -768,6 +768,30 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
 
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  const handleSyncAllImagesToLocal = async () => {
+    try {
+      setSyncStatus("Syncing local folder image URLs to database...");
+      const updated = teamMembers.map((m) => {
+        const localImg = resolveTeamMemberImage(m.name, m.image);
+        const role = (m.name || "").toLowerCase().includes("adaptation") ? "Leader" : (m.role === "Leader" ? "Leader" : "Member");
+        return {
+          ...m,
+          role,
+          image: localImg
+        };
+      });
+      await saveTeamMembers(updated);
+      setSyncStatus("Successfully updated all team photos in the database to their folder URLs!");
+      setTimeout(() => setSyncStatus(null), 5000);
+    } catch (err) {
+      console.error(err);
+      setSyncStatus("Error saving to database. Please check permissions.");
+      setTimeout(() => setSyncStatus(null), 5000);
+    }
+  };
+
   const handleOpenAddModal = () => {
     setEditingMember(null);
     setMemberFormName("");
@@ -780,7 +804,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setEditingMember(member);
     setMemberFormName(member.name);
     setMemberFormRole(member.role);
-    setMemberFormImage(member.image);
+    setMemberFormImage(resolveTeamMemberImage(member.name, member.image));
     setIsMemberModalOpen(true);
   };
 
@@ -788,15 +812,16 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     e.preventDefault();
     if (!memberFormName.trim() || !memberFormRole.trim()) return;
 
+    const safeImage = resolveTeamMemberImage(memberFormName.trim(), memberFormImage.trim());
     if (editingMember) {
-      const updated = teamMembers.map(m => m.id === editingMember.id ? { ...m, name: memberFormName, role: memberFormRole, image: memberFormImage } : m);
+      const updated = teamMembers.map(m => m.id === editingMember.id ? { ...m, name: memberFormName, role: memberFormRole, image: safeImage } : m);
       saveTeamMembers(updated);
     } else {
       const newM: TeamMember = {
         id: Date.now().toString(),
         name: memberFormName,
         role: memberFormRole,
-        image: memberFormImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"
+        image: safeImage
       };
       saveTeamMembers([...teamMembers, newM]);
     }
@@ -1367,14 +1392,31 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     <h2 className="font-display text-xl sm:text-2xl font-extrabold text-[#1a1c1d] tracking-tight">Team Management</h2>
                     <p className="text-xs sm:text-sm text-[#5d5e64] mt-1">Review and manage the elite squad of the Adaptation Family.</p>
                   </div>
-                  <button 
-                    onClick={handleOpenAddModal}
-                    className="self-start sm:self-auto bg-[#f3c623] hover:bg-[#ebd018] text-black px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer shrink-0"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">add</span>
-                    Add New Member
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button 
+                      onClick={handleSyncAllImagesToLocal}
+                      className="bg-neutral-800 hover:bg-neutral-900 text-white px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm cursor-pointer shrink-0"
+                      title="Replace database Cloudinary links with local folder URLs"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">sync</span>
+                      Sync Folder URLs to Database
+                    </button>
+                    <button 
+                      onClick={handleOpenAddModal}
+                      className="self-start sm:self-auto bg-[#f3c623] hover:bg-[#ebd018] text-black px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">add</span>
+                      Add New Member
+                    </button>
+                  </div>
                 </div>
+
+                {syncStatus && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold px-4 py-3 rounded-xl mb-6 flex items-center gap-2 animate-in fade-in">
+                    <span className="material-symbols-outlined text-sm text-emerald-600">check_circle</span>
+                    {syncStatus}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   {teamMembers.map((member, idx) => (
