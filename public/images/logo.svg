@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18191c" />
+      <stop offset="100%" stop-color="#0e0f12" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe259" />
+      <stop offset="100%" stop-color="#ffa751" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  
+  <!-- Outer circle background -->
+  <circle cx="100" cy="100" r="96" fill="url(#bgGrad)" stroke="#2d3139" stroke-width="4" />
+  
+  <!-- Inner decorative ring -->
+  <circle cx="100" cy="100" r="86" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-dasharray="8 4" opacity="0.85" />
+  
+  <!-- Stylized Shield/Emblem -->
+  <path d="M100 35 L145 60 L145 110 C145 142 100 165 100 165 C100 165 55 142 55 110 L55 60 Z" 
+        fill="none" stroke="url(#goldGrad)" stroke-width="4" filter="url(#shadow)" stroke-linejoin="round" />
+        
+  <!-- AF Monogram -->
+  <text x="100" y="112" font-family="'Montserrat', 'Space Grotesk', sans-serif" font-size="44" font-weight="900" 
+        fill="url(#goldGrad)" text-anchor="middle" letter-spacing="2">AF</text>
+        
+  <!-- Small Stars / Accent -->
+  <circle cx="100" cy="138" r="3.5" fill="#f3c623" />
+  <circle cx="86" cy="138" r="2.5" fill="#f3c623" opacity="0.8" />
+  <circle cx="114" cy="138" r="2.5" fill="#f3c623" opacity="0.8" />
+</svg>

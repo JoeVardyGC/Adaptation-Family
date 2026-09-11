@@ -1,0 +1,1877 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { MessageCircle, Video, ExternalLink, X, Users, Sparkles } from 'lucide-react';
+import { db, auth } from './firebase';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
+import AdminLogin from './components/AdminLogin';
+import AdminDashboard from './components/AdminDashboard';
+import { DEFAULT_TEAM_MEMBERS } from './data/teamMembers';
+
+interface Ticket {
+  id: string;
+  category: string;
+  matches: string;
+  odds: string;
+  bookingCode: string;
+  isHighOdds?: boolean;
+}
+
+interface Category {
+  name: string;
+  icon: string;
+  matches: string;
+  tickets: Ticket[];
+}
+
+// Dynamic categories will be declared inside the App component to stay synchronized with localStorage and Admin Dashboard.
+
+const EXPERTS = DEFAULT_TEAM_MEMBERS;
+
+const toTitleCase = (str: string) => {
+  if (!str) return str;
+  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
+export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [activeView, setActiveView] = useState<'home' | 'booking-codes' | 'team' | 'donate' | 'community' | 'privacy' | 'terms' | 'login' | 'admin-dashboard'>('home');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('All');
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [donationCopiedText, setDonationCopiedText] = useState<string | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [selectedExpertIndex, setSelectedExpertIndex] = useState<number>(0);
+  const [showDate, setShowDate] = useState(true);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [formattedDate, setFormattedDate] = useState('');
+  const [oddsSortOrder, setOddsSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
+  const [logoClickCount, setLogoClickCount] = useState(0);
+
+  // Synchronized payment settings
+  const [momoProvider, setMomoProvider] = useState(() => localStorage.getItem("momo_provider") || "MTN");
+  const [momoAccountName, setMomoAccountName] = useState(() => localStorage.getItem("momo_account_name") || "");
+  const [momoNumber, setMomoNumber] = useState(() => localStorage.getItem("momo_number") || "");
+  const [momoReference, setMomoReference] = useState(() => localStorage.getItem("momo_reference") || "");
+
+  // Bank details
+  const [bankName, setBankName] = useState(() => localStorage.getItem("bank_name") || "");
+  const [bankAccountNumber, setBankAccountNumber] = useState(() => localStorage.getItem("bank_account_number") || "");
+  const [bankAccountHolder, setBankAccountHolder] = useState(() => localStorage.getItem("bank_account_holder") || "");
+  const [bankBranch, setBankBranch] = useState(() => localStorage.getItem("bank_branch") || "");
+
+  const [publicTeamMembers, setPublicTeamMembers] = useState<any[]>(() => {
+    const localTeam = localStorage.getItem("adaptation_team_members");
+    if (localTeam) {
+      try {
+        const parsed = JSON.parse(localTeam);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_TEAM_MEMBERS;
+  });
+  const [categories, setCategories] = useState<any[]>([]);
+  const [slips, setSlips] = useState<any[]>([]);
+
+  // Compute dynamic CATEGORIES structure to match original template expectation and adapt to live changes
+  const CATEGORIES: Category[] = categories.map(cat => {
+    const titleCasedName = toTitleCase(cat.name);
+    const ticketsForCat = slips
+      .filter(s => toTitleCase(s.category) === titleCasedName)
+      .map(s => {
+        const rawOdds = s.odds || "1.00";
+        const rawMatches = s.matches;
+        let formattedMatches = "0 Matches";
+        if (typeof rawMatches === 'number') {
+          formattedMatches = isNaN(rawMatches) ? "0 Matches" : `${rawMatches} Matches`;
+        } else if (typeof rawMatches === 'string') {
+          if (rawMatches.toLowerCase().includes("matches")) {
+            formattedMatches = rawMatches;
+          } else {
+            const parsed = parseInt(rawMatches.replace(/[^0-9]/g, ''), 10);
+            formattedMatches = isNaN(parsed) ? "0 Matches" : `${parsed} Matches`;
+          }
+        }
+        return {
+          id: s.id,
+          category: titleCasedName,
+          matches: formattedMatches,
+          odds: rawOdds,
+          bookingCode: s.bookingCode || `AF-${titleCasedName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-${rawOdds.replace('.', '')}`,
+          isHighOdds: parseFloat(rawOdds) >= 100
+        };
+      });
+    return {
+      name: titleCasedName,
+      icon: cat.icon || "receipt_long",
+      matches: ticketsForCat.length > 0 ? ticketsForCat[0].matches : "0 Matches",
+      tickets: ticketsForCat,
+      status: cat.status || "Active"
+    };
+  }).filter(cat => cat.status === "Active");
+
+  useEffect(() => {
+    // 1. Instantly load offline/local storage fallbacks for immediate responsiveness
+    setMomoProvider(localStorage.getItem("momo_provider") || "");
+    setMomoAccountName(localStorage.getItem("momo_account_name") || "");
+    setMomoNumber(localStorage.getItem("momo_number") || "");
+    setMomoReference(localStorage.getItem("momo_reference") || "");
+    setBankName(localStorage.getItem("bank_name") || "");
+    setBankAccountNumber(localStorage.getItem("bank_account_number") || "");
+    setBankAccountHolder(localStorage.getItem("bank_account_holder") || "");
+    setBankBranch(localStorage.getItem("bank_branch") || "");
+
+    const localCats = localStorage.getItem("adaptation_slip_categories");
+    if (localCats) {
+      try { setCategories(JSON.parse(localCats)); } catch (e) {}
+    } else {
+      setCategories([]);
+    }
+
+    const localSlips = localStorage.getItem("adaptation_slips_list");
+    if (localSlips) {
+      try { setSlips(JSON.parse(localSlips)); } catch (e) {}
+    } else {
+      setSlips([]);
+    }
+
+    const localTeam = localStorage.getItem("adaptation_team_members");
+    if (localTeam) {
+      try {
+        const parsed = JSON.parse(localTeam);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPublicTeamMembers(parsed);
+        } else {
+          setPublicTeamMembers(DEFAULT_TEAM_MEMBERS);
+        }
+      } catch (e) {
+        setPublicTeamMembers(DEFAULT_TEAM_MEMBERS);
+      }
+    } else {
+      setPublicTeamMembers(DEFAULT_TEAM_MEMBERS);
+    }
+
+    // 2. Setup real-time listeners to Firestore for live data synchronization
+    const unsubCats = onSnapshot(collection(db, "categories"), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setCategories(list);
+      localStorage.setItem("adaptation_slip_categories", JSON.stringify(list));
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubSlips = onSnapshot(collection(db, "slips"), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setSlips(list);
+      localStorage.setItem("adaptation_slips_list", JSON.stringify(list));
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      if (list.length > 0) {
+        setPublicTeamMembers(list);
+        localStorage.setItem("adaptation_team_members", JSON.stringify(list));
+      } else {
+        setPublicTeamMembers(DEFAULT_TEAM_MEMBERS);
+      }
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    const unsubPayments = onSnapshot(doc(db, "payment_settings", "global"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMomoProvider(data.momoProvider || "");
+        setMomoAccountName(data.momoAccountName || "");
+        setMomoNumber(data.momoNumber || "");
+        setMomoReference(data.momoReference || "");
+        setBankName(data.bankName || "");
+        setBankAccountNumber(data.bankAccountNumber || "");
+        setBankAccountHolder(data.bankAccountHolder || "");
+        setBankBranch(data.bankBranch || "");
+        
+        localStorage.setItem("momo_provider", data.momoProvider || "");
+        localStorage.setItem("momo_account_name", data.momoAccountName || "");
+        localStorage.setItem("momo_number", data.momoNumber || "");
+        localStorage.setItem("momo_reference", data.momoReference || "");
+        localStorage.setItem("bank_name", data.bankName || "");
+        localStorage.setItem("bank_account_number", data.bankAccountNumber || "");
+        localStorage.setItem("bank_account_holder", data.bankAccountHolder || "");
+        localStorage.setItem("bank_branch", data.bankBranch || "");
+      } else {
+        setMomoProvider("");
+        setMomoAccountName("");
+        setMomoNumber("");
+        setMomoReference("");
+        setBankName("");
+        setBankAccountNumber("");
+        setBankAccountHolder("");
+        setBankBranch("");
+
+        localStorage.setItem("momo_provider", "");
+        localStorage.setItem("momo_account_name", "");
+        localStorage.setItem("momo_number", "");
+        localStorage.setItem("momo_reference", "");
+        localStorage.setItem("bank_name", "");
+        localStorage.setItem("bank_account_number", "");
+        localStorage.setItem("bank_account_holder", "");
+        localStorage.setItem("bank_branch", "");
+      }
+    }, (err) => console.log("Firestore loaded offline/cached values", err));
+
+    return () => {
+      unsubCats();
+      unsubSlips();
+      unsubTeam();
+      unsubPayments();
+    };
+  }, [activeView]);
+
+  const handleLogoClick = () => {
+    setLogoClickCount((prev) => {
+      const newCount = prev + 1;
+      if (newCount >= 4) {
+        setActiveView('login');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return 0;
+      }
+      return newCount;
+    });
+  };
+
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    // Format: e.g. "Saturday, June 27, 2026"
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    setFormattedDate(new Date().toLocaleDateString('en-US', options));
+
+    const handleScroll = () => {
+      if (window.scrollY < 50) {
+        setShowDate(true);
+        setIsAtTop(true);
+      } else {
+        setShowDate(false);
+        setIsAtTop(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const generateSlipCode = (id: string, category: string, odds: string) => {
+    const cleanCategory = category.replace(/\s+/g, '').toUpperCase().slice(0, 3);
+    const numericPart = odds.replace('.', '');
+    return `AF-${cleanCategory}-${numericPart}`;
+  };
+
+  const handleCopyCode = (id: string, code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedStates((prev) => ({ ...prev, [id]: true }));
+      setCopiedText(code);
+      setTimeout(() => {
+        setCopiedStates((prev) => ({ ...prev, [id]: false }));
+        setCopiedText(null);
+      }, 2000);
+    }).catch((err) => {
+      console.error("Could not copy text: ", err);
+    });
+  };
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        {isLoading && (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.4 } }}
+            className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-6">
+              {/* Bouncing Logo */}
+              <motion.div
+                animate={{
+                  y: [0, -32, 0],
+                }}
+                transition={{
+                  duration: 1.0,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.12)] border-4 border-neutral-100"
+              >
+                <img
+                  src="/images/logo.png"
+                  alt="Adaptation Family Logo"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (!target.src.endsWith('.svg')) {
+                      target.src = target.src.endsWith('.png') ? '/images/logo.jpg' : '/images/logo.svg';
+                    }
+                  }}
+                />
+              </motion.div>
+              
+              {/* Subtle floor shadow bouncing with the logo */}
+              <motion.div
+                animate={{
+                  scaleX: [1, 0.6, 1],
+                  opacity: [0.3, 0.1, 0.3],
+                }}
+                transition={{
+                  duration: 1.0,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="w-16 h-2 bg-neutral-900/10 rounded-full blur-[2px]"
+              />
+
+              <div className="flex flex-col items-center gap-1.5 mt-2">
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="loader-title font-display text-lg sm:text-xl text-neutral-900 uppercase tracking-wider"
+                >
+                  Adaptation Family
+                </motion.p>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "64px" }}
+                  transition={{ delay: 0.3, duration: 0.6 }}
+                  className="h-1 bg-[#f3c623] rounded-full"
+                />
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  transition={{ delay: 0.4 }}
+                  className="loader-subtitle text-[10px] sm:text-xs text-neutral-500 tracking-widest uppercase mt-1"
+                >
+                  Loading Daily Destination...
+                </motion.p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="bg-surface text-on-surface antialiased flex">
+      
+      {activeView !== 'login' && activeView !== 'admin-dashboard' && (
+        <>
+          {/* Top Navigation Bar (Unified Desktop & Mobile) */}
+          <header className="w-full fixed top-0 left-0 right-0 h-16 z-50 bg-surface-container-low/95 backdrop-blur-md border-b border-outline-variant shadow-sm px-4 sm:px-6 md:px-8 flex items-center justify-center">
+        <div className="w-full max-w-5xl flex items-center justify-between">
+          <div 
+            onClick={handleLogoClick}
+            className="flex items-center gap-3 cursor-pointer select-none"
+          >
+            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm border border-outline-variant">
+              <img
+                src="/images/logo.png"
+                alt="Adaptation Family Logo"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (!target.src.endsWith('.svg')) {
+                    target.src = target.src.endsWith('.png') ? '/images/logo.jpg' : '/images/logo.svg';
+                  }
+                }}
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <h1 className="text-sm sm:text-base md:text-lg font-bold text-on-surface leading-none tracking-tight font-display portrait-header-title" style={{ fontSize: '16px' }}>Adaptation Family</h1>
+            </div>
+          </div>
+
+          {/* Desktop Navigation Links */}
+          <div className="hidden md:flex items-center gap-4 lg:gap-6">
+            <a 
+              onClick={() => {
+                setActiveView('home');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1.5 hover:text-primary-container transition-colors text-xs lg:text-sm cursor-pointer ${
+                activeView === 'home' ? 'text-on-surface font-extrabold border-b-2 border-primary-container pb-0.5' : 'text-on-surface-variant font-normal'
+              }`}
+            >
+              <span>Home</span>
+            </a>
+            
+            <a 
+              onClick={() => {
+                setActiveView('booking-codes');
+                setSelectedCategoryTab('All');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1.5 hover:text-primary-container transition-colors text-xs lg:text-sm cursor-pointer ${
+                activeView === 'booking-codes' ? 'text-on-surface font-extrabold border-b-2 border-primary-container pb-0.5' : 'text-on-surface-variant font-normal'
+              }`}
+            >
+              <span>Booking Codes</span>
+            </a>
+
+             <a 
+              onClick={() => {
+                setActiveView('team');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1.5 hover:text-primary-container transition-colors text-xs lg:text-sm cursor-pointer ${
+                activeView === 'team' ? 'text-on-surface font-extrabold border-b-2 border-primary-container pb-0.5' : 'text-on-surface-variant font-normal'
+              }`}
+            >
+              <span>Meet Our Team</span>
+            </a>
+
+            <a 
+              onClick={() => {
+                setActiveView('donate');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1.5 hover:text-primary-container transition-colors text-xs lg:text-sm cursor-pointer ${
+                activeView === 'donate' ? 'text-on-surface font-extrabold border-b-2 border-primary-container pb-0.5' : 'text-on-surface-variant font-normal'
+              }`}
+            >
+              <span>Donate</span>
+            </a>
+
+            <motion.button 
+              onClick={() => {
+                setActiveView('community');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              whileHover={{ 
+                scale: 1.05,
+                rotate: [0, -1, 1, -1, 1, 0],
+                transition: { duration: 0.3 }
+              }}
+              className={`${
+                activeView === 'community' ? 'bg-on-surface text-amber-400' : 'bg-primary-container text-on-primary-container'
+              } font-normal text-xs lg:text-sm py-2 px-4 rounded-xl hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-1.5 shadow-sm`}
+            >
+              Join Community
+            </motion.button>
+          </div>
+
+          {/* Mobile Navigation Controls */}
+          <div className="flex md:hidden items-center gap-2">
+            <button 
+              onClick={() => {
+                setActiveView('donate');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`text-[11px] px-3 py-1.5 rounded-full uppercase tracking-wider font-extrabold shadow-sm hover:opacity-90 active:scale-95 transition-all portrait-donate-btn ${
+                activeView === 'donate' ? 'bg-on-surface text-primary-container' : 'bg-primary-container text-on-primary-container'
+              }`}
+            >
+              Donate
+            </button>
+            <button 
+              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+              className="text-on-surface hover:bg-surface-container-high w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+              aria-label="Toggle Menu"
+            >
+              <span className="material-symbols-outlined text-2xl font-bold">
+                {isMobileNavOpen ? 'close' : 'menu'}
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Slide-out Mobile Drawer Menu Overlay */}
+      {isMobileNavOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop with elegant blur */}
+          <div 
+            onClick={() => setIsMobileNavOpen(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300"
+          ></div>
+          
+          {/* Drawer Panel on the right */}
+          <nav className="absolute right-0 top-0 h-full w-72 bg-surface-container-lowest border-l border-outline-variant p-6 flex flex-col gap-6 shadow-2xl animate-in slide-in-from-right duration-250 ease-out">
+            <div className="flex items-center justify-between border-b border-outline-variant pb-4 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-outline-variant">
+                  <img
+                    src="/images/logo.png"
+                    alt="Adaptation Family Logo"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (!target.src.endsWith('.svg')) {
+                        target.src = target.src.endsWith('.png') ? '/images/logo.jpg' : '/images/logo.svg';
+                      }
+                    }}
+                  />
+                </div>
+                <span className="font-display text-sm font-bold text-on-surface tracking-tight">Navigation</span>
+              </div>
+              <button 
+                onClick={() => setIsMobileNavOpen(false)}
+                className="text-on-surface-variant hover:text-on-surface w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 flex-grow">
+              <a 
+                onClick={() => {
+                  setActiveView('home');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'home' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: '"FILL" 1' }}>home</span>
+                <span className={`font-label-lg ${activeView === 'home' ? 'font-bold' : 'font-normal'}`}>Home</span>
+              </a>
+              
+              <a 
+                onClick={() => {
+                  setActiveView('booking-codes');
+                  setSelectedCategoryTab('All');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'booking-codes' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">confirmation_number</span>
+                <span className={`font-label-lg ${activeView === 'booking-codes' ? 'font-bold' : 'font-normal'}`}>Booking Codes</span>
+              </a>
+
+              <a 
+                onClick={() => {
+                  setActiveView('team');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'team' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: activeView === 'team' ? '"FILL" 1' : '' }}>groups</span>
+                <span className={`font-label-lg ${activeView === 'team' ? 'font-bold' : 'font-normal'}`}>Meet Our Team</span>
+              </a>
+
+              <a 
+                onClick={() => {
+                  setActiveView('donate');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'donate' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: activeView === 'donate' ? '"FILL" 1' : '' }}>volunteer_activism</span>
+                <span className={`font-label-lg ${activeView === 'donate' ? 'font-bold' : 'font-normal'}`}>Support / Donate</span>
+              </a>
+
+              <a 
+                onClick={() => {
+                  setActiveView('privacy');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'privacy' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">gavel</span>
+                <span className={`font-label-lg ${activeView === 'privacy' ? 'font-bold' : 'font-normal'}`}>Privacy Policy</span>
+              </a>
+
+              <a 
+                onClick={() => {
+                  setActiveView('terms');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`flex items-center gap-sm p-3 hover:bg-primary-container/10 hover:text-on-primary-container rounded-xl transition-all duration-200 cursor-pointer text-sm ${
+                  activeView === 'terms' ? 'bg-primary-container/10 text-on-primary-container font-extrabold' : 'text-on-surface-variant font-semibold'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">description</span>
+                <span className={`font-label-lg ${activeView === 'terms' ? 'font-bold' : 'font-normal'}`}>Terms of Service</span>
+              </a>
+
+
+            </div>
+
+            <div className="flex flex-col gap-sm pt-4 border-t border-outline-variant">
+              <button 
+                onClick={() => {
+                  setActiveView('community');
+                  setIsMobileNavOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full bg-primary-container text-on-primary-container font-label-lg text-label-lg py-3 px-4 rounded-xl hover:opacity-90 transition-opacity flex justify-center items-center gap-xs shadow-md font-normal cursor-pointer"
+              >
+                Join Community
+                <span className="material-symbols-outlined text-sm">send</span>
+              </button>
+              <div className="text-center text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">
+                Elite Sports Analytics
+              </div>
+            </div>
+          </nav>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Main Content Canvas */}
+      <main className={`w-full min-h-screen flex flex-col bg-surface-bright ${(activeView === 'login' || activeView === 'admin-dashboard') ? '' : 'pt-16'}`}>
+        
+        {activeView === 'home' && (
+          <>
+            {/* Hero Section (Full Bleed Background) */}
+            <section className="relative w-full min-h-[650px] md:min-h-[750px] lg:min-h-[850px] flex items-center overflow-hidden">
+              {/* Background Carousel Images */}
+              <div className="absolute inset-0 z-0">
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover bg-carousel-1" 
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzjNYaIMJyQVPtQWWd8vebvL84op63DV35A6_KqfnhOTNVCPkooGiZieddNgRg725pvNrF7lKKmrM5hbHJby9KxVgdkwRrQFGRyZiK4yf49OIQj3mm8-eW97OM3IzzGSYjIXFoCYQDIACLMrjWe9wNHJ-Rc0MqHwEzEl5RkZcPLxt0QoAp2H6TL3HhJ_eA-j9gtzkhGSW6N0-VvxGN8pBooRb4LgeSz6N8rQGUNB4DWSdcFwlHOVYord9kV_r1whqc2Clrw2HnmQ" 
+                  alt="Stadium Backdrop 1"
+                />
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover bg-carousel-2" 
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDIOyed6M-Att8_Iy7xg8DxdlN95GM4fYVvXPGZbi0S3qIwNZC1naxxipR60yblxJOx9T_z17deK-9Fzl20mH_MLq9wG1T7isc_9U1dh214TMDKCw2HU0-jDdaNTEy_R8Tk05drcDyUu1iIwwqCrjztChEpZLZDy637WFmMSlWrgS_r-x4hL5_hXaQTcJnU0zBu--gTiCLpt-nFuT3MYMFCOkUmyRHpUHvzKCK7K7V_y6AF8sIVqO496dIPhoGhEnkap5H6C6oTg" 
+                  alt="Stadium Backdrop 2"
+                />
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover bg-carousel-3" 
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVrzTImstpvtXJMSOy2oKMCjDa_dHtBH1bJp5UVWsHgQPhXjZl-FI6ub0C7Z6rdhCmYamyqx9Nha35ahqyxegOXC_pZtyyx82QOVCQHG3zWLCmrP4to4o1xdno3sm52bZgmxTaACDAfupOI3oOpg7JJ_mmeTgzh8b65PA-i8sd_C1yyGTaIusJ2RFcrAXCZC3mURticNrhRPQd4HJkr0KO-cg7q_6rChuatIJMVZa-_wI4XJJw3fySIYOQkqPQ5qn-mfhBebJ8vA" 
+                  alt="Stadium Backdrop 3"
+                />
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"></div>
+              </div>
+
+              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 py-16 md:py-24 lg:py-28 relative z-10 flex flex-col items-center text-center gap-6">
+                <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                  <span className="w-2 h-2 rounded-full bg-[#ff3b30] animate-pulse shadow-[0_0_8px_rgba(255,59,48,0.8)]"></span>
+                  Live: 5 New Predictions
+                </span>
+
+                <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white font-bold leading-tight max-w-4xl drop-shadow-lg portrait-hero-title" style={{ fontSize: '49px' }}>
+                  Your Daily Destination for <br />
+                  <span className="text-black bg-primary-container px-3 py-1 rounded-lg border-0 inline-block mt-2 shadow-xl transform -rotate-1 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold portrait-hero-span">
+                    Winning Bet Slips
+                  </span>
+                </h2>
+
+                <div className="flex flex-col gap-4 max-w-3xl">
+                  <p className="text-sm sm:text-base md:text-lg text-white/95 font-normal leading-relaxed drop-shadow-md portrait-hero-desc">
+                    Welcome to the official <span className="font-bold text-white">Adaptation Family</span> website, a rapidly growing and highly engaged global Sports Betting Community! Born on TikTok, our platform brings together a passionate audience of over <span className="font-bold text-[#f3c623] bg-white/10 px-2 py-0.5 rounded-md border border-white/10">90,000 followers</span> and millions of viewers who love sports, trending entertainment, and impactful cultural content.
+                  </p>
+                </div>
+
+                <div className="mx-auto flex flex-row justify-center items-stretch gap-2 mt-6 w-full max-w-lg px-2">
+                  <div className="flex-1 bg-white/10 backdrop-blur-md p-2.5 sm:p-4 rounded-xl border border-white/20 shadow-lg flex flex-col items-center justify-center text-white">
+                    <span className="stat-value-text text-base sm:text-2xl font-extrabold drop-shadow-md">85%</span>
+                    <span className="stat-label-text text-[9px] sm:text-xs text-white/85 uppercase font-bold tracking-wider text-center mt-1 leading-none">Win Rate</span>
+                  </div>
+                  <div className="flex-1 bg-white/10 backdrop-blur-md p-2.5 sm:p-4 rounded-xl border border-white/20 shadow-lg flex flex-col items-center justify-center text-white">
+                    <span className="stat-value-text text-base sm:text-2xl font-extrabold drop-shadow-md">90K+</span>
+                    <span className="stat-label-text text-[9px] sm:text-xs text-white/85 uppercase font-bold tracking-wider text-center mt-1 leading-none">Followers</span>
+                  </div>
+                  <div className="flex-1 bg-white/10 backdrop-blur-md p-2.5 sm:p-4 rounded-xl border border-white/20 shadow-lg flex flex-col items-center justify-center text-white">
+                    <span className="stat-value-text text-base sm:text-2xl font-extrabold drop-shadow-md">24/7</span>
+                    <span className="stat-label-text text-[9px] sm:text-xs text-white/85 uppercase font-bold tracking-wider text-center mt-1 leading-none">Analysis</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Container for max-width content */}
+            <div id="booking-codes" className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 py-10 md:py-16 flex flex-col gap-10 md:gap-16">
+              
+              {/* Booking Codes Restructuring (7 Categories) */}
+              <div className="flex flex-col gap-10 md:gap-16">
+                <div>
+                  <h2 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl text-on-surface font-bold leading-tight border-b-4 border-primary-container inline-block pb-2 mb-2 portrait-booking-title" style={{ fontSize: '32px' }}>
+                    Exclusive Booking Codes
+                  </h2>
+                  <p className="text-sm sm:text-base text-on-surface-variant font-normal">
+                    Access our specialized betting categories for maximum returns.
+                  </p>
+                </div>
+
+                 {CATEGORIES.length === 0 ? (
+                  <div className="bg-gradient-to-br from-surface-container-low via-surface-container-low/95 to-surface-container-lowest border border-outline-variant/40 rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4.5 shadow-md hover:shadow-lg transition-all duration-300 my-6">
+                    <div className="w-14 h-14 rounded-full bg-primary-container/25 text-[#ebd018] flex items-center justify-center animate-pulse border border-primary-container/35 shadow-sm">
+                      <span className="material-symbols-outlined text-3xl">receipt_long</span>
+                    </div>
+                    <h4 className="text-base sm:text-lg font-extrabold text-on-surface tracking-tight">No slips available yet</h4>
+                    <p className="text-xs sm:text-sm text-on-surface-variant max-w-sm leading-relaxed font-medium">
+                      Our analysts are currently working on high-performance picks. Check back shortly for premium betting slips!
+                    </p>
+                  </div>
+                ) : (
+                  CATEGORIES.map((category) => (
+                    <section key={category.name} className="flex flex-col gap-4">
+                      <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
+                        <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-bold flex items-center gap-2 portrait-category-title" style={{ fontSize: '18px' }}>
+                          <span className="material-symbols-outlined text-primary-container bg-black p-1 rounded text-lg sm:text-xl">
+                            {category.icon}
+                          </span>
+                          {category.name}
+                        </h3>
+                        <button 
+                          onClick={() => {
+                            setActiveView('booking-codes');
+                            setSelectedCategoryTab(category.name);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="hidden sm:block portrait-hide text-xs sm:text-sm text-on-surface-variant hover:text-primary-container transition-colors font-normal uppercase tracking-wider portrait-view-more-btn cursor-pointer"
+                        >
+                          View More →
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 px-1 py-1">
+                        {category.tickets.slice(0, 5).map((ticket) => {
+                          const isCopied = !!copiedStates[ticket.id];
+                          return (
+                            <div 
+                              key={ticket.id} 
+                              className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
+                            >
+                              <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
+                                <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
+                                  {ticket.category}
+                                </span>
+                                <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
+                                  {ticket.matches}
+                                </span>
+                              </div>
+
+                              <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2 px-1 text-center select-all">
+                                <span className="slip-code-text text-on-surface tracking-wider">
+                                  {ticket.bookingCode}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-baseline py-0.5 sm:py-1">
+                                <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
+                                <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
+                                  {ticket.odds}
+                                </span>
+                              </div>
+
+                              <button 
+                                onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
+                                className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
+                                  isCopied 
+                                    ? "bg-emerald-500 text-white hover:opacity-100" 
+                                    : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
+                                  {isCopied ? "check" : "content_copy"}
+                                </span> 
+                                {isCopied ? "Copied!" : "Copy Slip"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Mobile/Portrait view: View More button placed after the last card */}
+                      <div className="hidden portrait-show-block mt-2">
+                        <button 
+                          onClick={() => {
+                            setActiveView('booking-codes');
+                            setSelectedCategoryTab(category.name);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="w-full py-2.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface hover:text-primary-container font-normal text-xs uppercase tracking-wider rounded-xl transition-all border border-surface-container text-center flex justify-center items-center gap-1.5 portrait-view-more-btn cursor-pointer"
+                        >
+                          View More {category.name} →
+                        </button>
+                      </div>
+                    </section>
+                  ))
+                )}
+              </div>
+
+              {/* Support/Donate Call to Action */}
+              <section className="bg-surface-container-lowest border-2 border-primary-container/80 hover:border-primary-container rounded-3xl p-6 md:p-12 flex flex-col items-center text-center gap-6 shadow-md relative overflow-hidden transition-all max-w-4xl mx-auto w-full">
+                <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center mb-xs shadow-[0_0_20px_rgba(209,255,0,0.4)] z-10">
+                  <span className="material-symbols-outlined text-3xl text-on-primary-container font-bold">volunteer_activism</span>
+                </div>
+                
+                <h3 className="font-display text-2xl md:text-3xl lg:text-4xl text-on-surface font-bold z-10">Support the Movement</h3>
+                <p className="text-sm md:text-base text-on-surface-variant max-w-2xl font-normal z-10 leading-relaxed">
+                  Your contributions help us maintain top-tier analytics and keep the daily winning codes coming. Donate to the team and keep the momentum going!
+                </p>
+                
+                <div className="flex flex-wrap justify-center gap-sm mt-xs z-10">
+                  <button 
+                    onClick={() => {
+                      setActiveView('donate');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-primary-container text-on-primary-container hover:bg-primary-container/90 py-2.5 px-6 rounded-xl flex items-center gap-sm transition-all shadow-md font-normal text-base cursor-pointer active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-on-primary-container text-xl">payments</span> 
+                    Donate via Mobile Money
+                  </button>
+                </div>
+              </section>
+
+              {/* Meet the Team */}
+              <section className="flex flex-col gap-8 pt-10 md:pt-16 border-t border-surface-container-high" id="meet-the-experts">
+                <div className="flex flex-col items-center text-center gap-2 mb-2">
+                  <span className="bg-primary-container/25 text-[#7d7d7d] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-primary-container/35 portrait-analytical-span">
+                    ⚡ Engine Room
+                  </span>
+                  <h3 className="font-display text-3xl md:text-4xl text-on-surface font-extrabold tracking-tight mt-1 portrait-experts-title" style={{ fontSize: '36px' }}>Meet the Experts</h3>
+                  <p className="text-sm md:text-base text-on-surface-variant max-w-2xl font-medium">
+                    The analytical minds driving our unmatched accuracy.
+                  </p>
+                </div>
+
+                {/* Custom structured grid based on the uploaded layout */}
+                {publicTeamMembers && publicTeamMembers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4.5 max-w-7xl mx-auto w-full px-4">
+                    {publicTeamMembers.map((expert) => {
+                      const imageUrl = expert.image || expert.img;
+                      return (
+                        <div 
+                          key={expert.id || expert.name} 
+                          className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-2xl border border-outline-variant/10 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary-container/40 transition-all duration-500 ease-out cursor-pointer flex flex-col justify-end"
+                        >
+                          {/* Background Image */}
+                          <img 
+                            src={imageUrl} 
+                            alt={expert.name} 
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                            }}
+                          />
+                          
+                          {/* Dark overlay gradient for high readability contrast */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 transition-all duration-300 group-hover:from-black/90"></div>
+                          
+                          {/* Overlay content at bottom with gentle hover lifting */}
+                          <div className="relative z-20 p-5 flex flex-col text-left transition-transform duration-300 ease-out group-hover:translate-y-[-4px]">
+                            <h4 className="text-lg sm:text-xl font-extrabold text-white leading-tight font-sans tracking-tight">
+                              {expert.name}
+                            </h4>
+                            <p className="text-xs sm:text-sm text-neutral-300 font-semibold mt-1 opacity-95">
+                              {expert.role}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-surface-container-low via-surface-container-low/95 to-surface-container-lowest border border-outline-variant/40 rounded-2xl p-8 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-md hover:shadow-lg transition-all duration-300 my-4">
+                    <div className="w-12 h-12 rounded-full bg-primary-container/25 text-[#ebd018] flex items-center justify-center animate-pulse border border-primary-container/35 shadow-sm">
+                      <span className="material-symbols-outlined text-2xl">groups</span>
+                    </div>
+                    <h4 className="text-base font-extrabold text-on-surface tracking-tight">Meet our team soon</h4>
+                    <p className="text-xs sm:text-sm text-on-surface-variant max-w-sm leading-relaxed font-medium">
+                      Our expert profiles are currently being updated in the engine room. Check back soon to meet the team!
+                    </p>
+                  </div>
+                )}
+              </section>
+
+            </div>
+          </>
+        )}
+
+        {activeView === 'booking-codes' && (
+          <div className="w-full flex flex-col bg-surface-bright pb-16 animate-in fade-in duration-300">
+            {/* Header section designed to match colors, fonts, sizing */}
+            <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 pt-8 md:pt-12 flex flex-col gap-4">
+              <div>
+                <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-on-surface font-extrabold tracking-tight mt-3 mb-2" style={{ fontSize: '38px' }}>
+                  Exclusive Booking Codes
+                </h2>
+                <p className="text-sm sm:text-base text-on-surface-variant max-w-2xl font-normal">
+                  Access all our analytical sports betting categories. Select a category below to filter our high-octane premium slips.
+                </p>
+              </div>
+            </div>
+
+            {/* Sticky subheader Category Filter Chips bar */}
+            <div className={`sticky-category-bar w-full bg-surface-bright/90 sticky top-16 z-40 border-b border-outline-variant py-4 px-4 sm:px-6 md:px-8 backdrop-blur-md mt-6 ${
+              isAtTop ? 'is-at-top' : 'is-scrolled'
+            }`}>
+              <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-center gap-2 w-full md:w-auto">
+                  <div 
+                    className="category-chips-container flex flex-wrap items-center justify-center bg-surface-container-low border border-surface-container rounded-2xl md:rounded-full p-2 md:p-1 shadow-sm gap-2 md:gap-1 max-w-full mx-auto"
+                  >
+                    <button 
+                      onClick={() => setSelectedCategoryTab('All')}
+                      className={`px-5 py-2 rounded-full font-sans text-xs sm:text-sm tracking-wide transition-all duration-300 cursor-pointer ${
+                        selectedCategoryTab === 'All' 
+                          ? "bg-primary-container text-on-primary-container font-bold shadow-md" 
+                          : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high font-normal"
+                      }`}
+                    >
+                      All Categories
+                    </button>
+                    {CATEGORIES.map((cat) => (
+                      <button 
+                        key={cat.name}
+                        onClick={() => setSelectedCategoryTab(cat.name)}
+                        className={`px-5 py-2 rounded-full font-sans text-xs sm:text-sm tracking-wide whitespace-nowrap transition-all duration-300 cursor-pointer ${
+                          selectedCategoryTab === cat.name 
+                            ? "bg-primary-container text-on-primary-container font-bold shadow-md" 
+                            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high font-normal"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sorting Dropdown */}
+                <div className="flex items-center gap-2.5 bg-surface-container-low border border-surface-container rounded-xl sm:rounded-full px-4 py-2 shadow-sm w-full md:w-auto justify-between md:justify-start">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-on-surface-variant text-lg">sort</span>
+                    <label htmlFor="odds-sort-select" className="text-xs font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+                      Sort Odds:
+                    </label>
+                  </div>
+                  <select
+                    id="odds-sort-select"
+                    value={oddsSortOrder}
+                    onChange={(e) => setOddsSortOrder(e.target.value as 'default' | 'asc' | 'desc')}
+                    className="bg-transparent text-on-surface text-xs sm:text-sm font-bold outline-none cursor-pointer pr-1"
+                  >
+                    <option value="default" className="bg-surface-bright text-on-surface">Default</option>
+                    <option value="asc" className="bg-surface-bright text-on-surface">Low → High</option>
+                    <option value="desc" className="bg-surface-bright text-on-surface">High → Low</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Categories list grids (showing all 5 tickets per category) */}
+            <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 py-8 md:py-12 flex flex-col gap-10 md:gap-16">
+              <div className="flex flex-col gap-10 md:gap-16">
+                {CATEGORIES.length === 0 ? (
+                  <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                    <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">confirmation_number</span>
+                    <h4 className="text-lg font-bold text-on-surface">No booking codes published</h4>
+                    <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                      There are no active categories or booking codes uploaded at the moment. Please check back later.
+                    </p>
+                  </div>
+                ) : (
+                  CATEGORIES
+                    .filter((category) => selectedCategoryTab === 'All' || category.name === selectedCategoryTab)
+                    .map((category) => (
+                      <section key={category.name} className="flex flex-col gap-5 animate-in fade-in duration-300">
+                        <div className="flex justify-between items-center border-b-2 border-surface-container pb-2">
+                          <h3 className="text-base sm:text-lg md:text-xl text-on-surface font-extrabold flex items-center gap-2 portrait-category-title" style={{ fontSize: '21px' }}>
+                            <span className="material-symbols-outlined text-primary-container bg-black p-1.5 rounded-lg text-lg sm:text-xl shadow-md">
+                              {category.icon}
+                            </span>
+                            {category.name}
+                          </h3>
+                          <span className="bg-surface-container-low border border-surface-container px-3 py-1 rounded-full text-xs font-bold text-on-surface-variant">
+                            {category.tickets.length} Slips Available
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 px-1 py-1">
+                          {(() => {
+                            const sortedTickets = [...category.tickets];
+                            if (oddsSortOrder === 'asc') {
+                              sortedTickets.sort((a, b) => parseFloat(a.odds) - parseFloat(b.odds));
+                            } else if (oddsSortOrder === 'desc') {
+                              sortedTickets.sort((a, b) => parseFloat(b.odds) - parseFloat(a.odds));
+                            }
+                            return sortedTickets.map((ticket) => {
+                              const isCopied = !!copiedStates[ticket.id];
+                              return (
+                                <div 
+                                  key={ticket.id} 
+                                  className="bg-surface-container-lowest border border-surface-container rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col justify-between gap-3 sm:gap-4 group hover:border-primary-container/80 hover:shadow-md transition-all duration-300 w-full"
+                                >
+                                  <div className="flex justify-between items-center bg-surface-container-low p-2 rounded-lg gap-1">
+                                    <span className="font-bold text-[9px] sm:text-[10px] uppercase tracking-wider text-on-surface-variant truncate">
+                                      {ticket.category}
+                                    </span>
+                                    <span className="bg-surface-container-lowest px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold text-on-surface flex-shrink-0">
+                                      {ticket.matches}
+                                    </span>
+                                  </div>
+
+                                  <div className="border border-dashed border-outline-variant bg-surface-container-low/50 rounded-lg py-2.5 px-1.5 text-center select-all">
+                                    <span className="slip-code-text text-on-surface tracking-wider">
+                                      {ticket.bookingCode}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex justify-between items-baseline py-0.5 sm:py-1">
+                                    <span className="text-on-surface-variant font-normal text-[10px] sm:text-xs">Total Odds:</span>
+                                    <span className={`font-bold text-base sm:text-xl ${ticket.isHighOdds ? "text-error" : "text-on-surface"}`}>
+                                      {ticket.odds}
+                                    </span>
+                                  </div>
+
+                                  <button 
+                                    onClick={() => handleCopyCode(ticket.id, ticket.bookingCode)}
+                                    className={`w-full font-normal text-[10px] sm:text-xs py-2 sm:py-2.5 rounded-lg flex justify-center items-center gap-1 transition-all shadow-sm cursor-pointer ${
+                                      isCopied 
+                                        ? "bg-emerald-500 text-white hover:opacity-100" 
+                                        : "bg-primary-container text-on-primary-container hover:opacity-90 active:scale-[0.98]"
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined text-[14px] sm:text-[16px]">
+                                      {isCopied ? "check" : "content_copy"}
+                                    </span> 
+                                    {isCopied ? "Copied!" : "Copy Slip"}
+                                  </button>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </section>
+                    ))
+                )}
+              </div>
+
+              {/* Back to Home Button */}
+              <div className="flex justify-center mt-12">
+                <button 
+                  onClick={() => {
+                    setActiveView('home');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 font-normal text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                  BACK TO HOME
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'team' && (
+          <div className="w-full flex flex-col bg-surface-bright pb-16 animate-in fade-in duration-300">
+            {/* Hero Section */}
+            <section className="py-12 md:py-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto text-center relative overflow-hidden w-full mt-4">
+              <div className="absolute inset-0 bg-surface-container-low -z-10 rounded-[3rem] opacity-50 transform -skew-y-2 scale-105"></div>
+              <div className="max-w-3xl mx-auto flex flex-col items-center gap-4 relative z-10">
+                <div className="inline-flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full mb-2 border border-outline-variant/30">
+                  <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">THE ENGINE ROOM</span>
+                </div>
+                <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-on-surface font-extrabold tracking-tight leading-tight">
+                  THE TEAM <br />
+                  <span className="text-white bg-on-surface px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
+                    Unmatched Experts
+                  </span>
+                </h2>
+                <p className="text-sm sm:text-base text-on-surface-variant max-w-2xl font-normal mt-2">
+                  The elite minds driving our high-octane sports analysis and predictions. Under the hood of the Adaptation Family.
+                </p>
+              </div>
+            </section>
+
+            {/* Team Grid */}
+            <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
+              {publicTeamMembers && publicTeamMembers.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto w-full px-4">
+                  {publicTeamMembers.map((expert) => {
+                    const imageUrl = expert.image || expert.img;
+                    return (
+                      <div 
+                        key={expert.id || expert.name} 
+                        className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-neutral-200/40 dark:border-neutral-800/40 shadow-md cursor-pointer flex flex-col justify-end"
+                      >
+                        {/* Background Image */}
+                        <img 
+                          src={imageUrl} 
+                          alt={expert.name} 
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200";
+                          }}
+                        />
+                        
+                        {/* Dark overlay gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 transition-all duration-300 group-hover:from-black/90"></div>
+                        
+                        {/* Overlay content at bottom */}
+                        <div className="relative z-20 p-5 flex flex-col text-left">
+                          <h4 className="text-lg font-bold text-white leading-tight font-sans tracking-tight">
+                            {expert.name}
+                          </h4>
+                          <p className="text-xs sm:text-sm text-neutral-300 font-light mt-0.5 opacity-90">
+                            {expert.role}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-lg mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">groups</span>
+                  <h4 className="text-lg font-bold text-on-surface">Meet our team soon</h4>
+                  <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                    Our expert profiles are currently being updated in the engine room. Check back soon to meet the elite team behind the Adaptation Family!
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* Back Call-to-action button */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-4 flex justify-center">
+              <button 
+                onClick={() => {
+                  setActiveView('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 font-normal text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                BACK TO HOME
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'donate' && (
+          <div className="w-full flex flex-col bg-surface-bright pb-16 animate-in fade-in duration-300">
+            {/* Hero Section */}
+            <section className="py-12 md:py-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto text-center relative overflow-hidden w-full mt-4">
+              <div className="absolute inset-0 bg-surface-container-low -z-10 rounded-[3rem] opacity-50 transform -skew-y-2 scale-105"></div>
+              <div className="max-w-3xl mx-auto flex flex-col items-center gap-4 relative z-10">
+                <div className="inline-flex items-center gap-2 bg-[#f3c623]/10 px-4 py-2 rounded-full mb-2 border border-[#f3c623]/30">
+                  <span className="w-2 h-2 rounded-full bg-[#f3c623] animate-pulse"></span>
+                  <span className="text-xs font-bold text-[#8f7200] uppercase tracking-wider">SUPPORT THE MOVEMENT</span>
+                </div>
+                <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-on-surface font-extrabold tracking-tight leading-tight">
+                  DONATE <br />
+                  <span className="text-black bg-[#f3c623] px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
+                    Direct Support Channels
+                  </span>
+                </h2>
+                <p className="text-sm sm:text-base text-on-surface-variant max-w-2xl font-normal mt-2">
+                  To keep our high-performance codes and daily elite analysis 100% free for everyone, you can support us directly through Mobile Money or Direct Bank Transfer.
+                </p>
+              </div>
+            </section>
+
+            {/* Direct Donation Channels Cards Grid */}
+            <section className="py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
+              {!momoNumber && !bankAccountNumber ? (
+                <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-12 text-center max-w-xl mx-auto w-full flex flex-col items-center gap-4 shadow-sm my-6">
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/60">volunteer_activism</span>
+                  <h4 className="text-lg font-bold text-on-surface">Donation Channels Offline</h4>
+                  <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                    Our direct support channels are currently undergoing scheduled maintenance. Please check back shortly for updated Mobile Money and Bank transfer details. We appreciate your incredible support!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                  {/* Mobile Money Details Card */}
+                  {momoNumber ? (
+                    <div className="bg-surface-container-lowest border border-[#f3c623]/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-[#f3c623] hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3c623]/10 rounded-full blur-2xl"></div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-[#f3c623]/20 flex items-center justify-center text-on-surface">
+                            <span className="material-symbols-outlined text-2xl font-bold text-[#8f7200]">phone_iphone</span>
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-[#8f7200] uppercase tracking-wider">Option 1</span>
+                            <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Mobile Money Transfer</h3>
+                          </div>
+                        </div>
+                        {/* Active Provider Logo & Badge Container (LARGE) */}
+                        <div className="shrink-0 flex self-start sm:self-center">
+                          {momoProvider === "MTN" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#FFCC00]/15 border border-[#FFCC00]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/a/af/MTN_Logo.svg" 
+                                alt="MTN Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#8f7200] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-neutral-900 leading-none">MTN MoMo</span>
+                              </div>
+                            </div>
+                          )}
+                          {momoProvider === "Telecel" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#E60000]/10 border border-[#E60000]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/2/23/Telecel_Group.jpg" 
+                                alt="Telecel Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  // If jpg fails, fallback to the svg path
+                                  (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Telecel_Group_Logo.svg";
+                                }}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#E60000] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-[#E60000] leading-none">Telecel Cash</span>
+                              </div>
+                            </div>
+                          )}
+                          {momoProvider === "AirtelTigo" && (
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#0056B3]/10 border border-[#0056B3]/40 rounded-2xl shadow-sm transition-all duration-300">
+                              <img 
+                                src="https://upload.wikimedia.org/wikipedia/commons/e/e5/AirtelTigo_logo.png" 
+                                alt="AirtelTigo Logo" 
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  // If main commons path fails, fallback to English Wikipedia fair use path
+                                  (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/en/2/22/AirtelTigo_logo.png";
+                                }}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-[#0056B3] uppercase tracking-wider leading-none mb-1">Provider</span>
+                                <span className="text-sm font-black text-[#0056B3] leading-none">AirtelTigo</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                        Transfer directly to our Mobile Money number using your mobile wallet provider.
+                      </p>
+
+                      <div className="flex flex-col gap-4">
+                        {/* Recipient Account Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Registered Account Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{momoAccountName}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoAccountName);
+                                setDonationCopiedText("Account Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Mobile Money Number */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider font-display">{momoProvider} Mobile Number</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg sm:text-xl font-bold text-on-surface tracking-tight whitespace-nowrap" style={{ fontFamily: '"Montserrat", sans-serif' }}>{momoNumber}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoNumber.replace(/\s+/g, ''));
+                                setDonationCopiedText("MoMo Number Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy MoMo Number"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Preferred Reference */}
+                        <div className="bg-[#f3c623]/5 border border-[#f3c623]/20 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-[#8f7200] uppercase tracking-wider">Required Reference</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-[#8f7200] font-mono">{momoReference}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(momoReference);
+                                setDonationCopiedText("Reference Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-[#f3c623]/20 rounded-lg text-[#8f7200] transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Reference"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Bank Details Card (Optional / Secondary) */}
+                  {bankAccountNumber ? (
+                    <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between gap-6 group hover:border-neutral-400 hover:shadow-md transition-all duration-300 w-full relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-200/20 rounded-full blur-2xl"></div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-on-surface">
+                          <span className="material-symbols-outlined text-2xl font-bold text-neutral-600">account_balance</span>
+                        </div>
+                        <div>
+                          <span className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Option 2 (Optional)</span>
+                          <h3 className="font-display text-xl sm:text-2xl font-black text-on-surface">Direct Bank Transfer</h3>
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                        Deposit or transfer directly from any local or international bank account.
+                      </p>
+
+                      <div className="flex flex-col gap-4">
+                        {/* Bank Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Bank Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-base sm:text-lg font-black text-on-surface">{bankName}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankName);
+                                setDonationCopiedText("Bank Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Bank Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Account Holder Name */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Holder Name</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{bankAccountHolder}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankAccountHolder);
+                                setDonationCopiedText("Account Name Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Name"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Account Number */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Account Number</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg sm:text-xl font-black text-on-surface font-mono tracking-tight">{bankAccountNumber}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankAccountNumber);
+                                setDonationCopiedText("Account Number Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Account Number"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bank Branch */}
+                        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Branch</span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm sm:text-base font-black text-on-surface">{bankBranch}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(bankBranch);
+                                setDonationCopiedText("Branch Copied!");
+                                setTimeout(() => setDonationCopiedText(null), 2000);
+                              }}
+                              className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface transition-all flex items-center justify-center cursor-pointer"
+                              title="Copy Branch"
+                            >
+                              <span className="material-symbols-outlined text-lg">content_copy</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+
+              {/* Toast Feedback for Copied Items */}
+              {donationCopiedText && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-on-surface text-primary-container text-xs font-bold px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce border border-primary-container/20">
+                  <span className="material-symbols-outlined text-sm font-black text-primary-container">done</span>
+                  <span>{donationCopiedText}</span>
+                </div>
+              )}
+
+            {/* Back Call-to-action button */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-4 flex justify-center">
+              <button 
+                onClick={() => {
+                  setActiveView('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 font-normal text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                BACK TO HOME
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'community' && (
+          <div className="w-full flex flex-col bg-surface-bright pb-16 animate-in fade-in duration-300">
+            {/* Hero Section */}
+            <section className="py-12 md:py-16 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto text-center relative overflow-hidden w-full mt-4">
+              <div className="absolute inset-0 bg-surface-container-low -z-10 rounded-[3rem] opacity-50 transform -skew-y-2 scale-105"></div>
+              <div className="max-w-3xl mx-auto flex flex-col items-center gap-4 relative z-10">
+                <div className="inline-flex items-center gap-2 bg-[#f3c623]/10 px-4 py-2 rounded-full mb-2 border border-[#f3c623]/30">
+                  <span className="w-2 h-2 rounded-full bg-[#f3c623] animate-pulse"></span>
+                  <span className="text-xs font-bold text-[#8f7200] uppercase tracking-wider text-amber-500">JOIN THE FAMILY</span>
+                </div>
+                <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-on-surface font-extrabold tracking-tight leading-tight text-neutral-900">
+                  JOIN OUR <br />
+                  <span className="text-black bg-amber-400 px-4 py-1.5 leading-tight inline-block transform -skew-x-6 mt-3 text-2xl sm:text-3xl md:text-4xl font-black">
+                    Sports Community
+                  </span>
+                </h2>
+                <p className="text-sm sm:text-base text-neutral-600 max-w-2xl font-normal mt-2 leading-relaxed">
+                  Become a member of a rapidly growing and highly engaged sports betting group. Select your preferred channel below to enter the arena and stay ahead of the game with the ultimate sports analysts network.
+                </p>
+              </div>
+            </section>
+
+            {/* Platform Options */}
+            <section className="py-6 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* WhatsApp Channel Card */}
+                <div 
+                  onClick={() => window.open("https://whatsapp.com/channel/0029Vb73kVuFi8xYWng9rf2S", "_blank", "noopener,noreferrer")}
+                  className="group border border-emerald-100 hover:border-emerald-400 bg-emerald-50/20 hover:bg-emerald-50/50 p-6 sm:p-8 rounded-3xl flex flex-col items-center text-center gap-5 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
+                  
+                  <div className="p-3 bg-emerald-500 rounded-2xl group-hover:scale-110 transition-transform shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12.004 2C6.48 2 2 6.48 2 12.004c0 1.832.493 3.548 1.353 5.029L2 22l5.122-1.343a9.96 9.96 0 004.882 1.347c5.524 0 10.004-4.48 10.004-10.004C22.008 6.48 17.528 2 12.004 2zm5.783 14.156c-.247.696-1.228 1.272-1.69 1.316-.45.044-.9.231-2.903-.564-2.56-.995-4.172-3.615-4.298-3.784-.127-.168-1.03-1.368-1.03-2.61s.655-1.848.887-2.09c.231-.243.504-.305.672-.305.168 0 .337.004.484.011.151.007.356-.058.556.425.205.495.702 1.708.763 1.83.061.123.102.266.02.428-.081.163-.122.266-.244.408-.122.143-.257.319-.367.428-.122.122-.249.255-.107.498.143.243.633 1.042 1.36 1.691.936.834 1.725 1.092 1.968 1.214.243.123.385.102.528-.061.142-.163.61-.71.773-.953.163-.243.326-.204.549-.122.224.081 1.424.671 1.668.793.244.122.407.184.468.286.061.102.061.594-.186 1.29z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <h3 className="text-xl font-bold text-neutral-900 group-hover:text-emerald-700 transition-colors">WhatsApp Channel</h3>
+                    <p className="text-sm text-neutral-600 leading-relaxed min-h-[48px]">
+                      Get direct notification of accurate slips, strategy discussion, 24/7 analysis, and stay ahead with direct booking codes!
+                    </p>
+                  </div>
+
+                  <div className="mt-4 w-full bg-emerald-500 text-white font-bold py-3 px-6 rounded-2xl group-hover:bg-emerald-600 transition-colors flex justify-center items-center gap-2 text-sm shadow-sm">
+                    <span>Join WhatsApp Group</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* TikTok Card */}
+                <div 
+                  onClick={() => window.open("https://www.tiktok.com/@adaptation_boom_nation?_r=1&_t=ZN-97j5UJmqIBa", "_blank", "noopener,noreferrer")}
+                  className="group border border-neutral-200 hover:border-neutral-900 bg-neutral-50/20 hover:bg-neutral-100/50 p-6 sm:p-8 rounded-3xl flex flex-col items-center text-center gap-5 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-neutral-900/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-150 transition-transform duration-500"></div>
+                  
+                  <div className="p-3 bg-black rounded-2xl group-hover:scale-110 transition-transform shadow-md shadow-neutral-900/20 flex items-center justify-center">
+                    <svg className="w-10 h-10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Cyan chromatic aberration offset */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#00f2fe" 
+                        transform="translate(-0.3, -0.3)"
+                      />
+                      {/* Magenta chromatic aberration offset */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#fe0979" 
+                        transform="translate(0.3, 0.3)"
+                      />
+                      {/* White main note */}
+                      <path 
+                        d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" 
+                        fill="#ffffff" 
+                      />
+                    </svg>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <h3 className="text-xl font-bold text-neutral-900 group-hover:text-neutral-850 transition-colors">TikTok Community</h3>
+                    <p className="text-sm text-neutral-600 leading-relaxed min-h-[48px]">
+                      Follow us on TikTok to enjoy premier prediction highlights, expert match previews, and dynamic winning formulas.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 w-full bg-neutral-900 text-white font-bold py-3 px-6 rounded-2xl group-hover:bg-black transition-colors flex justify-center items-center gap-2 text-sm shadow-sm">
+                    <span>Follow on TikTok</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Dynamic Family notice */}
+              <div className="mt-8 flex items-center justify-center gap-3 bg-neutral-50 p-4 rounded-2xl border border-neutral-100 text-xs md:text-sm text-neutral-600 max-w-2xl mx-auto">
+                <Users className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <span>Become an active member of our family today and stay ahead with over 90k sports enthusiasts!</span>
+              </div>
+            </section>
+
+            {/* Back Call-to-action button */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-6 flex justify-center">
+              <button 
+                onClick={() => {
+                  setActiveView('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 font-normal text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                BACK TO HOME
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'privacy' && (
+          <PrivacyPolicy 
+            onBackToHome={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }} 
+          />
+        )}
+
+        {activeView === 'terms' && (
+          <TermsOfService 
+            onBackToHome={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }} 
+          />
+        )}
+
+        {activeView === 'login' && (
+          <AdminLogin 
+            onBackToHome={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onNavigateToPrivacy={() => {
+              setActiveView('privacy');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onNavigateToTerms={() => {
+              setActiveView('terms');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onLoginSuccess={() => {
+              setActiveView('admin-dashboard');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
+        {activeView === 'admin-dashboard' && (
+          <AdminDashboard 
+            onLogout={() => {
+              setActiveView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
+        {/* Footer */}
+        {activeView !== 'login' && activeView !== 'admin-dashboard' && (
+          <footer className="w-full bg-neutral-950 text-neutral-300 border-t border-neutral-900 pt-16 pb-12 px-4 sm:px-6 md:px-8 mt-auto font-sans">
+          <div className="max-w-7xl mx-auto w-full flex flex-col gap-12">
+            
+            {/* Main Footer Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+              
+              {/* Column 1: Brand & Bio */}
+              <div className="flex flex-col gap-4">
+                <div className="font-display text-xl md:text-2xl text-white font-black uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-6 bg-[#f3c623] rounded-sm inline-block"></span>
+                  Adaptation Family
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="inline-flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 text-[#f3c623] text-xs font-semibold px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 rounded-full bg-[#f3c623] animate-pulse"></span>
+                    90K+ TikTok Fans
+                  </span>
+                </div>
+              </div>
+
+              {/* Column 2: Navigation Links */}
+               <div className="flex flex-col gap-4">
+                <h5 className="text-sm font-bold text-white uppercase tracking-widest border-l-2 border-[#f3c623] pl-2.5">
+                  Explore
+                </h5>
+                <ul className="flex flex-col gap-2.5 text-sm font-medium">
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('home');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Home Dashboard
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('booking-codes');
+                        setSelectedCategoryTab('All');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Booking Codes
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('team');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Meet Our Team
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('donate');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Support / Donate
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('community');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }} 
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Join The Family
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Column 3: Resources */}
+              <div className="flex flex-col gap-4">
+                <h5 className="text-sm font-bold text-white uppercase tracking-widest border-l-2 border-[#f3c623] pl-2.5">
+                  Resources
+                </h5>
+                <ul className="flex flex-col gap-2.5 text-sm font-medium">
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('privacy');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Privacy Policy
+                    </a>
+                  </li>
+                  <li>
+                    <a 
+                      onClick={() => {
+                        setActiveView('terms');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="hover:text-[#f3c623] transition-colors text-neutral-400 cursor-pointer"
+                    >
+                      Terms of Service
+                    </a>
+                  </li>
+
+                </ul>
+              </div>
+
+              {/* Column 4: Contact & Disclaimer */}
+              <div className="flex flex-col gap-4">
+                <h5 className="text-sm font-bold text-white uppercase tracking-widest border-l-2 border-[#f3c623] pl-2.5">
+                  Get In Touch
+                </h5>
+                <p className="text-sm text-neutral-400 leading-relaxed mb-1">
+                  Have partnership proposals, marketing inquiries, or questions? Connect with our administration.
+                </p>
+                <div className="flex flex-col gap-2.5 text-sm text-neutral-400">
+                  <a href="tel:0593562555" className="flex items-center gap-2 hover:text-[#f3c623] transition-colors w-fit">
+                    <span className="material-symbols-outlined text-[#f3c623] text-lg">call</span>
+                    <span>0593562555</span>
+                  </a>
+                  <a href="mailto:nurseismaila@gmail.com" className="flex items-center gap-2 hover:text-[#f3c623] transition-colors w-fit">
+                    <span className="material-symbols-outlined text-[#f3c623] text-lg">mail</span>
+                    <span className="break-all">nurseismaila@gmail.com</span>
+                  </a>
+                </div>
+              </div>
+
+            </div>
+
+
+
+          </div>
+        </footer>
+        )}
+
+      </main>
+
+      {/* Donate Modal */}
+      {isDonateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsDonateModalOpen(false)}></div>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl max-w-md w-full p-6 shadow-2xl relative z-10 flex flex-col gap-md">
+            <div className="flex justify-between items-center">
+              <h4 className="text-xl font-bold flex items-center gap-xs">
+                <span className="material-symbols-outlined text-primary-container bg-on-surface p-1 rounded">volunteer_activism</span>
+                Donate to the Experts
+              </h4>
+              <button 
+                onClick={() => setIsDonateModalOpen(false)}
+                className="text-on-surface-variant hover:text-on-surface cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-on-surface-variant">
+              Support the free daily tickets, deep statistics systems, and continuous high-octane coverage. Choose your payment method below:
+            </p>
+            <div className="flex flex-col gap-sm">
+              <div className="border border-surface-container-high rounded-xl p-sm flex items-center gap-md hover:bg-surface-container-low transition-all cursor-pointer">
+                <span className="material-symbols-outlined text-3xl text-primary-container bg-on-surface p-2 rounded-lg">phone_iphone</span>
+                <div className="flex-grow">
+                  <div className="font-bold text-sm">Mobile Money Ghana</div>
+                  <div className="text-xs text-on-surface-variant">MTN / Telecel / AT Money</div>
+                </div>
+                <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+              </div>
+              <div className="border border-surface-container-high rounded-xl p-sm flex items-center gap-md hover:bg-surface-container-low transition-all cursor-pointer">
+                <span className="material-symbols-outlined text-3xl text-primary-container bg-on-surface p-2 rounded-lg">credit_card</span>
+                <div className="flex-grow">
+                  <div className="font-bold text-sm">Visa / Mastercard / Card</div>
+                  <div className="text-xs text-on-surface-variant">Direct Checkout Portal</div>
+                </div>
+                <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+              </div>
+            </div>
+            <div className="bg-primary-container/10 border border-primary-container/30 rounded-xl p-sm text-xs text-on-primary-container leading-relaxed">
+              <strong>Note:</strong> All funds are shared directly with the lead analysts to keep analytical tools up-to-date. Thank you for driving this community forward!
+            </div>
+            <div className="flex gap-sm mt-xs">
+              <button 
+                onClick={() => setIsDonateModalOpen(false)}
+                className="flex-1 bg-surface-container-high text-on-surface font-bold py-3 rounded-lg hover:bg-surface-container-highest transition-all"
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => {
+                  alert("Thank you for your support! Mobile Money payment process initiated.");
+                  setIsDonateModalOpen(false);
+                }}
+                className="flex-1 bg-primary-container text-on-primary-container font-bold py-3 rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Proceed Ghana MoMo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy notification Toast indicator */}
+      {copiedText && (
+        <div className="fixed bottom-20 md:bottom-6 right-6 z-50 bg-on-surface text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-sm animate-bounce">
+          <span className="material-symbols-outlined text-primary-container">check_circle</span>
+          <span>Slip Code copied: <strong>{copiedText}</strong></span>
+        </div>
+      )}
+
+    </div>
+    </>
+  );
+}
