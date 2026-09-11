@@ -902,7 +902,7 @@ export default function App() {
                       return (
                         <div 
                           key={expert.id || expert.name} 
-                          className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-2xl border border-outline-variant/10 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary-container/40 transition-all duration-500 ease-out cursor-pointer flex flex-col justify-end"
+                          className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden group rounded-none border border-outline-variant/10 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary-container/40 transition-all duration-500 ease-out cursor-pointer flex flex-col justify-end"
                         >
                           {/* Background Image */}
                           <img 
